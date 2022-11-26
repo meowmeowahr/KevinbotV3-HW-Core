@@ -1,0 +1,230 @@
+'' =================================================================================================
+''
+''   File....... ka_pca9685.spin2
+''   Purpose.... I2C 16-channel LED/Servo controller
+''   Author..... Kevin Ahr
+''               Copyright (C) 2022 Kevin Ahr
+''               -- see below for terms of use
+''   E-mail..... meowmeowahr@gmail.com
+''   Started....
+''   Updated.... 28 MAY 2022
+''
+'' =================================================================================================
+
+con { fixed io pins }
+
+  RX1    = 63  { I }                                            ' programming / debug
+  TX1    = 62  { O }
+
+  SF_CS  = 61  { O }                                            ' serial flash
+  SF_SCK = 60  { O }
+  SF_SDO = 59  { O }
+  SF_SDI = 58  { I }
+
+
+con { pca registers }
+
+' Registers
+
+  MODE1                      = $00
+  MODE2                      = $01
+  SUBADR1                    = $02
+  SUBADR2                    = $03
+  SUBADR3                    = $04
+  PRESCALE                   = $FE
+  LED0_ON_L                  = $06
+  LED0_ON_H                  = $07
+  LED0_OFF_L                 = $08
+  LED0_OFF_H                 = $09
+  ALL_LED_ON_L               = $FA
+  ALL_LED_ON_H               = $FB
+  ALL_LED_OFF_L              = $FC
+  ALL_LED_OFF_H              = $FD
+
+  RESTART                    = $80
+  SLEEP                      = $10
+  ALLCALL                    = $01
+  INVRT                      = $10
+  OUTDRV                     = $04
+
+  MODE1_RESTART              = $80
+  MODE1_EXTCLK_ENABLE        = $40
+  MODE1_AUTOINCREMENT_ENABLE = $20
+  MODE1_SLEEP                = $10
+  MODE1_SUB1_ENABLE          = $08
+  MODE1_SUB2_ENABLE          = $04
+  MODE1_SUB3_ENABLE          = $02
+  MODE1_ALLCALL_ENABLE       = $01
+
+
+  MODE2_INVRT_ENABLE         = $10
+  MODE2_INVRT_NOT            = $00
+  MODE2_OUTCHANGE_ON_STOP    = $00
+  MODE2_OUTCHANGE_ON_ACK4    = $08
+  MODE2_OUTDRV_TOTEM_POLE    = $04
+  MODE2_OUTDRV_OPEN_DRAIN    = $00
+  MODE2_OUTNE_HIGH_IMPEDANCE = $02
+  MODE2_OUTNE_WHEN_OUTDRV    = $01
+  MODE2_OUTNE_NOT_ENABLED    = $00
+
+
+
+
+con
+
+  PCA_WR   = %1000_000_0                                        ' default address
+
+  PU_EXT   = i2c.PU_EXT                                         ' i2c pull-up options
+  PU_1K5   = i2c.PU_1K5
+  PU_3K3   = i2c.PU_3K3
+  PU_15K   = i2c.PU_15K
+
+
+obj
+
+  i2c : "jm_i2c"                                                ' i2c driver (inline pasm2)
+
+' Important: I2C object must support clock stretching
+
+
+var
+
+  byte  devid                                                   ' device id
+
+  byte  freq                                                    ' pca frequency (hz)
+
+
+pub null()
+
+'' This is not a top object
+
+
+pub start(sclpin, sdapin, khz, pullup) : result
+
+'' Start the PCA9685 connection with default device id
+'' -- sclpin and sdapin define the I2C bus
+'' -- khz is the bus speed in kilohertz (100 or lower)
+'' -- pullup is the selection of i2c bus pull-up strength
+
+  return startx(sclpin, sdapin, khz, PCA_WR, pullup)          ' use default address
+
+
+pub startx(sclpin, sdapin, khz, id, pullup) : result | m1
+
+'' Start the PCA9685 connection with specified device id
+'' -- sclpin and sdapin define the I2C bus
+'' -- khz is the bus speed in kilohertz (100 or lower)
+'' -- id is the target id
+'' -- pullup is the selection of i2c bus pull-up strength
+
+  i2c.setup(sclpin, sdapin, khz, pullup)
+
+  devid := id
+
+  set_all_pwm(0, 0)
+
+  write_register(MODE2, OUTDRV)
+  write_register(MODE1, ALLCALL)
+  waitms(5)                                                   ' wait for oscillator
+  m1 := read_register(MODE1)
+  m1 := m1 & %01                                              ' wake up (reset sleep)
+  write_register(MODE1, m1)
+  waitms(5)                                                   ' wait for oscillator
+
+  set_pwm_freq(60)                                            ' set freq to 60 by default
+
+  return is_connected()
+
+
+pub is_connected() : result
+
+'' Returns true if I2C device ack's
+
+  return (i2c.present(devid))
+
+pub set_all_pwm(on, off)
+
+'' Sets all PWM channels
+  write_register(ALL_LED_ON_L, on & $FF)
+  write_register(ALL_LED_ON_H, on >> 8)
+  write_register(ALL_LED_OFF_L, off & $FF)
+  write_register(ALL_LED_OFF_H, off >> 8)
+
+pub set_pwm(channel, on, off)
+'' Sets a single PWM channel
+  write_register(LED0_ON_L+4*channel, on & $FF)
+  write_register(LED0_ON_H+4*channel, on >> 8)
+  write_register(LED0_OFF_L+4*channel, off & $FF)
+  write_register(LED0_OFF_H+4*channel, off >> 8)
+
+pub set_pwm_freq(freq_hz) | prescaleval, presc, oldmode, newmode, fhz
+
+'' Set the PWM frequency to the provided value in hertz
+  freq := freq_hz
+  prescaleval := 25000000 / (4096 * freq_hz) - 1
+  oldmode := read_register(MODE1)
+  newmode := (oldmode & $7F) | $10    ' sleep
+  write_register(MODE1, newmode)  ' go to sleep
+  write_register(PRESCALE, prescaleval)
+  write_register(MODE1, oldmode)
+  waitms(5)
+  write_register(MODE1, oldmode | $80)
+
+pub set_us(channel, us)
+
+  set_pwm(channel, 0, us/4)
+
+pub read_freq() : f
+
+  return freq
+
+
+pri read_register(addr) : result
+
+'' Read 8-bit value from addr
+
+  i2c.start()
+  i2c.write(devid)
+  i2c.write(addr)
+  i2c.stop()
+  i2c.start()
+  i2c.write(devid | $01)
+  result := i2c.read(i2c.NAK)
+  i2c.stop()
+
+
+pri write_register(addr, value)
+
+'' Write 8-bit value to register at address
+
+  i2c.start()
+  i2c.write(devid)
+  i2c.write(addr)
+  i2c.write(value.byte[0])
+  i2c.stop()
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}

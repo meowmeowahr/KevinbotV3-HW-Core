@@ -1,0 +1,208 @@
+'' ===============================================================================================
+''
+''   File....... jm_quadrature.spin2
+''   Purpose.... Quadrature encoder with [optional] button
+''   Author..... Jon "JonnyMac" McPhalen
+''               Copyright (c) 2020 Jon McPhalen
+''               -- see below for terms of use
+''   E-mail..... jon.mcphalen@gmail.com
+''   Started....
+''   Updated.... 30 DEC 2020
+''
+'' =================================================================================================
+
+{
+
+  A/B quadrature encoder using P2 smart pin. B pin must be within +/-3 of A pin
+
+  Note that some detented encoders will return 4 counts per detent.
+  -- set det4x to true
+
+}
+
+
+con { fixed io pins }
+
+  RX1    = 63  { I }                                            ' programming / debug
+  TX1    = 62  { O }
+
+  SF_CS  = 61  { O }                                            ' serial flash
+  SF_SCK = 60  { O }
+  SF_SDO = 59  { O }
+  SF_SDI = 58  { I }
+
+
+con
+
+  #true, DETENT, NO_DETENT                                      ' "click" or "no click"
+
+  #0, PRESSED, RELEASED                                         ' for active-low button
+
+
+var
+
+  long  apin                                                    ' A input (clock)
+  long  bpin                                                    ' B input (data)
+  long  btnpin                                                  ' button input (-1 if not used)
+  long  mod4x                                                   ' 4x per detent modification
+  long  offset                                                  ' for preset
+  long  lolimit                                                 ' for range limiting
+  long  hilimit
+  long  setup                                                   ' true when pin setup
+
+
+pub null()
+
+'' This is not a top-level object
+
+
+pub start(a, b, btn, d4x, preset, lo, hi) : result | dif, mode
+
+'' Start the encoder object
+'' -- continuous count mode
+'' -- a & b (clock & data) are encoder inputs (active-low)
+'' -- btn is the button input (active-low, use -1 if not used)
+'' -- set d4x to true if each "click" is 4 counts
+'' -- preset is initial value for encoder
+'' -- lo & hi are limit values for encoder
+
+  dif := b - a
+  if ((dif == 0) || (abs(dif) > 3))                             ' check pins
+    return false
+
+  longmove(@apin, @a, 7)                                        ' save pins & limits
+
+  pinstart(apin, P_QUADRATURE | dif.[2..0] << 24, 0, 0)         ' start a/b quadrature mode
+
+  pinclear(bpin)                                                ' clear old mode from B pin
+
+  if (btnpin >= 0)                                              ' button used?
+    pinclear(btnpin)                                            '  yes, clear it
+
+  mod4x := (d4x) ? 2 : 0                                        ' fix detent modifier
+  fix_limits()                                                  ' force lolimit < hilimit
+  set_value(preset)                                             ' preset encoder value
+
+  setup := result := true
+
+
+pub clear()
+
+'' Set encoder to 0
+
+  set_value(0)
+
+
+pub set_value(preset) : result
+
+'' Set encoder to preset value
+
+  pinfloat(apin)                                                ' reset & clear
+  pinlow(apin)                                                  ' re-enable
+
+  preset := lolimit #> preset <# hilimit                        ' force into range
+
+  result := offset := preset                                    ' set encoder value
+
+
+pub set_range(lo, hi) : result
+
+'' Update encoder range
+'' -- will constrict current value if out of new range
+
+  longmove(@lolimit, @lo, 2)                                    ' get new range
+  fix_limits()
+
+  result := value()                                             ' update encoder if needed
+
+
+pub configure(preset, lo, hi) : result
+
+'' Configure encoder range and current value
+
+  set_range(lo, hi)                                             ' update new range
+  set_value(preset)                                             ' update current value
+
+  result := value()
+
+
+pub value() : result
+
+'' Return encoder value
+'' -- returns encoder value turncated to lolimit..hilimit
+
+  result := raw() + offset                                      ' read and update value
+
+  if (result < lolimit)                                         ' limit range
+    result := set_value(lolimit)
+  elseif (result > hilimit)
+    result := set_value(hilimit)
+
+
+pub check_press(ms) : t
+
+'' Debounce encoder button for delay milliseconds
+'' -- return true for pressed, false for not pressed
+
+  if ((setup) && (btnpin >= 0))                                 ' button used?
+    repeat while (pinread(btnpin) == PRESSED)                   ' pressed?
+      waitms(1)                                                 '  wait 1ms
+      if (++t >= ms)                                            '  bump and check timer
+        return true
+
+  return false
+
+
+pub force_release(ms) : t
+
+'' Holds until button is clear ms milliseconds
+
+  if ((setup) && (btnpin >= 0))                                 ' button used?
+    repeat
+      if (pinread(btnpin) == RELEASED)                          ' if button not pressed
+        waitms(1)                                               '  wait 1ms
+        if (++t >= ms)                                          '  bump timer and check
+          return
+      else
+        t := 0                                                  '  else reset timer
+
+
+pub raw() : result
+
+'' Returns encoder value w/o user offset
+
+  result := rdpin(apin) sar mod4x
+
+
+pri fix_limits()
+
+'' Force lolimit to be less than hilimit
+
+  if (lolimit > hilimit)
+    lolimit, hilimit := hilimit, lolimit                        ' swap if needed
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}
