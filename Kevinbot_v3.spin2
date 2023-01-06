@@ -7,7 +7,7 @@
 ''               -- see below for terms of use
 ''   E-mail..... meowmeowahr@gmail.com
 ''   Started.... 06 JUN 2022
-''   Updated.... 29 DEC 2022
+''   Updated.... 05 JAN 2023
 ''
 ''   {$P2}
 ''
@@ -26,19 +26,22 @@
 }
 
 
-{
+{{
 
-  Error Codes
-  NOBEEP 0: Everything OK
-  (0001) 1: Invalid Startup Arm Positions
-  NOBEEP 2: Invalid Command from Pi
-  (0011) 3: BME280 Setup Failed
-  (0100) 4: BME280 Read Failed
-  (0101) 5: One Wire Bus Short
-  (0110) 6: One Wire Bus Error
-  (0111) 7: One Wire Device not Found
-
-}
+  Error Codes:
+  =============================================
+  |  BIN  |DEC| ERROR                         |
+  |-------------------------------------------|
+  |NOBEEP | 0 | Everything OK                 |
+  |(0001) | 1 | Invalid Startup Arm Positions |
+  |NOBEEP | 2 | Invalid Command from Pi       |
+  |(0011) | 3 | BME280 Setup Failed           |
+  |(0100) | 4 | BME280 Read Failed            |
+  |(0101) | 5 | One Wire Bus Short            |
+  |(0110) | 6 | One Wire Bus Error            |
+  |(0111) | 7 | One Wire Device not Found     |
+  =============================================
+}}
 
 
 con { timing }
@@ -86,30 +89,30 @@ con { app io pins }
   DISPLAY_LIGHT_PIN = 31                                        ' BL Pin
   DISPLAY_LIGHT_FRQ = 1000                                      ' BL Hz
 
-  RPI_TX            = 6                                         ' Raspberry Pi
-  RPI_RX            = 5
+  RPI_TX            = 6  { I }                                  ' Raspberry Pi
+  RPI_RX            = 5  { O }
 
-  CAMERA_LED        = 14
-  LED               = 19
+  CAMERA_LED        = 14  { O }                                 ' camera ring / lights
+  LED               = 19  { O }                                 ' all robot leds (daisy-chained)
 
-  SDA               = 15
-  SCL               = 16
+  SDA               = 15  { IO }                                ' i2c bus
+  SCL               = 16  { IO }
 
-  VOLT1_P           = 17
-  VOLT2_P           = 18
+  VOLT1_P           = 17  { I }                                 ' voltage sensors
+  VOLT2_P           = 18  { I }
 
-  LEFT_MOT          = 20
-  RIGHT_MOT         = 21
+  LEFT_MOT          = 20  { O }                                 ' hb25 motor control
+  RIGHT_MOT         = 21  { O }
 
-  LEFT_ENC_A        = 22
-  LEFT_ENC_B        = 23
+  LEFT_ENC_A        = 22  { I }                                 ' left motor encoder
+  LEFT_ENC_B        = 23  { I }
 
-  RIGHT_ENC_A       = 24
-  RIGHT_ENC_B       = 25
+  RIGHT_ENC_A       = 24  { I }                                 ' right motor encoder
+  RIGHT_ENC_B       = 25  { I }
 
-  ONE_WIRE          = 26
+  ONE_WIRE          = 26  { IO }                                ' one wire bus
 
-  BUZZER_PIN        = 27
+  BUZZER_PIN        = 27  { O }                                 ' alert buzzer
 
 
 con { settings }
@@ -120,8 +123,8 @@ con { settings }
   '''  Startup Eye Settings  '''
 
   S_EYE_MODE        = 1
-  EYE_MAX           = 180
-  EYE_MIN           = 60
+  EYE_X_MAX         = 180
+  EYE_X_MIN         = 60
   S_EYE_RADIUS      = 35
 
   S_IRIS_RADIUS     = 45
@@ -165,7 +168,7 @@ con { settings }
   MONITOR_BATTS     = YES                                       ' use 1 or 2 battery sensors
   MONITOR_BME       = YES                                       ' enable bme280 sensor
   MONITOR_TEMPS     = YES                                       ' enable 3x DS18b20
-  MONITOR_ANGLE     = YES                                       ' enable angle
+  MONITOR_ANGLE     = YES                                       ' enable angle sensor (temp rng)
 
   SENSOR_UPDATE_INT = 4000                                      ' sensor update interval
 
@@ -184,12 +187,9 @@ con { settings }
 
   TERMINAL          = NO                                        ' enable terminal debug over usb
 
-  STARTUP_BEEP      = YES
+  STARTUP_BEEP      = YES                                       ' beep on startup
 
   ''''''''''''''''''''''''''''''
-
-  EYE_X_MAX = 180
-  EYE_X_MIN = 60
 
 
 con  { servo channels }
@@ -266,9 +266,9 @@ dat
 
   ' DS18b20 serial numbers
 
-  SN0           byte      $28, $98, $C0, $23, $0C, $32, $20, $F0 ' left motor
-  SN1           byte      $28, $BF, $08, $42, $0C, $32, $20, $C0 ' right motor
-  SN2           byte      $28, $2E, $5C, $47, $0C, $32, $20, $4D ' robot temp
+  SN0           byte    $28, $98, $C0, $23, $0C, $32, $20, $F0  ' left motor
+  SN1           byte    $28, $BF, $08, $42, $0C, $32, $20, $C0  ' right motor
+  SN2           byte    $28, $2E, $5C, $47, $0C, $32, $20, $4D  ' robot temp
 
 
 dat { command tables }
@@ -315,7 +315,7 @@ dat { command tables }
 
   NumHead       byte    6                                       ' number of commands in table
 
-  HeadEffMult   byte    0, 0, 500, 10, 200, 200
+  HeadEffMult   byte    0, 0, 500, 10, 200, 200                 ' effect speed multiplier
 
   HeadEffects
                 byte    "color1"         , 0
@@ -328,7 +328,7 @@ dat { command tables }
 
   NumBody       byte    10                                      ' number of commands in table
 
-  BodyEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7
+  BodyEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
 
   BodyEffects
                 byte    "color1"         , 0
@@ -345,7 +345,7 @@ dat { command tables }
 
   NumBase       byte    10                                      ' number of commands in table
 
-  BaseEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7
+  BaseEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
 
   BaseEffects
                 byte    "color1"         , 0
@@ -448,10 +448,10 @@ pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
 
   setup()
 
-  disp_cog := cogspin(newcog, display_cog(), @scstack)
-  sens_cog := cogspin(newcog, sensor_cog(), @scstack2)
+  disp_cog := cogspin(newcog, display_cog(), @scstack)          ' display cog
+  sens_cog := cogspin(newcog, sensor_cog(), @scstack2)          ' sensor update cog
 
-  if STARTUP_BEEP
+  if STARTUP_BEEP                                               ' make startup beeps
     tone(20, 1600, 100)
     tone(20, 800, 150)
     tone(20, 1000, 100)
