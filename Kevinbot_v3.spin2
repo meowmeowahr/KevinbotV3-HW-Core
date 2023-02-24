@@ -7,7 +7,6 @@
 ''               -- see below for terms of use
 ''   E-mail..... meowmeowahr@gmail.com
 ''   Started.... 06 JUN 2022
-''   Updated.... 05 JAN 2023
 ''
 ''   {$P2}
 ''
@@ -163,8 +162,6 @@ con { settings }
 
   '''    Sensor Settings     '''
 
-  MONITOR_BATT1     = NO                                        ' deprecated
-  MONITOR_BATT2     = NO                                        ' deprecated
   MONITOR_BATTS     = YES                                       ' use 1 or 2 battery sensors
   MONITOR_BME       = YES                                       ' enable bme280 sensor
   MONITOR_TEMPS     = YES                                       ' enable 3x DS18b20
@@ -188,6 +185,8 @@ con { settings }
   TERMINAL          = NO                                        ' enable terminal debug over usb
 
   STARTUP_BEEP      = YES                                       ' beep on startup
+
+  ALIVE_INTERVAL    = 2000
 
   ''''''''''''''''''''''''''''''
 
@@ -225,6 +224,7 @@ obj
   timer3  : "jm_ez_timer"                                       '   timer for leds
   timer4  : "jm_ez_timer"                                       '   timer for sensors
   timer5  : "jm_ez_timer"                                       '   timer for eyes
+  timer6  : "jm_ez_timer"                                       '   timer for alive updates
   prng    : "jm_prng"                                           '   TEMPORARY RNG
   nstr    : "jm_nstr"                                           '   number-to-string
 
@@ -256,7 +256,7 @@ dat
                 byte     "  Kevinbot v3  ", 13
                 byte     "===============", 13, 0
 
-  Version       byte     "version=v3.0.0-testing", 10, 0        ' version
+  Version       byte     "version=v0.1.0", 10, 0                ' version
 
 '                        rr gg bb ww
   CameraColor   long    $FF_FF_FF_00                            ' color for camera ring
@@ -385,10 +385,6 @@ var { globals }
   byte  eye_y
   byte  eye_stage
 
-  long  light_update_head
-  long  light_update_body
-  long  light_update_base
-
   byte  serial_buf[BUFFER_SIZE]
   byte  clean_buf[BUFFER_SIZE]
 
@@ -403,6 +399,10 @@ var { globals }
   long  pixbuf[TOTAL_LEDS]                                      ' pixel buffer
 
   ''' leds and animations '''
+
+  long  light_update_head
+  long  light_update_body
+  long  light_update_base
 
   long  head_color1
   long  head_color2
@@ -427,12 +427,7 @@ var { globals }
   byte  base_animation_pos
   byte  base_ani_phase
 
-  '''''''''''''''''''''''''''
-
   byte  error_state                                             ' current hardware error (0 for none)
-
-  byte  tmp1[CMD_SIZE]
-  byte  tmp2[CMD_SIZE]
 
 
 pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
@@ -465,6 +460,10 @@ pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
 
     if running == 1
       check_serial()
+
+      if timer6.millis() >= ALIVE_INTERVAL
+        timer6.start()
+        rpi.fstr1(string("alive=%d", 10), getsec())
 
       if timer1.millis() >= (light_update_head * byte[@HeadEffMult][head_effect-1]) / 100
         timer1.start()
@@ -853,20 +852,6 @@ pub update_sensors() | level1, level2, voltage1, voltage2, r, tc, tf, p, h
   level2 := volt2.read()
   voltage1 := map(level1, 0, 1000, 0, 358)
   voltage2 := map(level2, 0, 1000, 0, 358)
-
-
-  if MONITOR_BATT1
-    rpi.str(string("batt_volt1="))
-    rpi.dec(voltage1)
-    rpi.tx(10)
-    waitms(2)
-
-
-  if MONITOR_BATT2
-    rpi.str(string("batt_volt2="))
-    rpi.dec(voltage2)
-    rpi.tx(10)
-    waitms(2)
 
   if MONITOR_BATTS
     rpi.fstr2(string("batt_volts=%d,%d", 10), voltage1, voltage2)
