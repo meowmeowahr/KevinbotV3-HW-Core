@@ -122,7 +122,7 @@ obj
   eye_pwm : "jm_pwm"                                            '   pwm for displays
 
   strs    : "ka_strings"                                        '   string manipulation
-  timer1  : "jm_ez_timer"                                       '   timer for leds
+  timer1  : "jm_ez_timer"                                       '   timer
   prng    : "jm_prng"                                           '   TEMPORARY RNG
   nstr    : "jm_nstr"                                           '   number-to-string
 
@@ -178,8 +178,8 @@ var { globals }
 
   byte  running
 
-  long  disp_scstack[128]
-  byte  disp_cog
+  long  update_scstack[128]
+  byte  upd_cog
 
   byte  serial_buf[BUFFER_SIZE]
 
@@ -212,7 +212,7 @@ pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
       tsns.BAD_RESET : error_state := 6
       tsns.NO_DEVICE : error_state := 7
 
-  disp_cog := cogspin(newcog, display_cog(), @disp_scstack)                      ' display cog
+  upd_cog := cogspin(newcog, update_cog(), @update_scstack)                 ' cog
 
   repeat
     if running == 1
@@ -229,10 +229,16 @@ pub check_serial() | index, i, v, vn, len, c
   index := cmd_index(@cmdstr)
 
   if index == 1
+    term.fstr1(string("error=%d", 10), error_state)
     term.fstr1(string("chip=%s", 10), string("Propeller 2"))
     term.str(string("root=P2 Kevinbot Board", 10))
     fstr20(string("pins=DISP_A:%d..P%d,DISP_B:%d..P%d,RPI_RX:%d,RPI_TX:%d,CAMERA_LED:%d,LED:%d,SDA:%d,SCL:%d,VOLT1_P:%d,VOLT2_P:%d,LEFT_MOT:%d,RIGHT_MOT:%d,LEFT_ENC_A:%d,LEFT_ENC_B:%d,RIGHT_ENC_A:%d,RIGHT_ENC_B:%d,ONE_WIRE:%d,BUZZER_PIN:%d", 10), ...
                   DISPLAYA_BASE_PIN, DISPLAYA_BASE_PIN + 8, DISPLAYB_BASE_PIN, DISPLAYB_BASE_PIN + 8, RPI_RX, RPI_TX, CAMERA_LED, LED, SDA, SCL, VOLT1_P, VOLT2_P, LEFT_MOT, RIGHT_MOT, LEFT_ENC_A, LEFT_ENC_B, RIGHT_ENC_A, RIGHT_ENC_B, ONE_WIRE, BUZZER_PIN)
+
+    tone(50, 1000, 50)
+    tone(60, 750, 100)
+    tone(50, 1000, 50)
+    tone(60, 750, 100)
 
 
 pub tone(amp, freq, length)
@@ -242,14 +248,16 @@ pub tone(amp, freq, length)
   beeper.write(0)
 
 
-pub display_cog()
+pub update_cog()
 
   setup_display()                                                           ' setup display after starting cogs
 
   waitms(500)
 
   repeat
-    waitct(0)
+    if timer1.millis() >= 1000
+      if error_state > 0
+        term.fstr1(string("error=%d", 10), error_state)
 
 
 pub parse(p_src, p_cstr, p_vstr) : result | len, sep, x, c
