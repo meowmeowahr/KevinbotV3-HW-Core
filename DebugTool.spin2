@@ -230,8 +230,10 @@ pub check_serial() | index, i, v, vn, len, c
     term.fstr1(string("error=%d", 10), error_state)
     term.fstr1(string("chip=%s", 10), string("Propeller 2"))
     term.str(string("root=P2 Kevinbot Board", 10))
+    term.str(string("leds=WS1812B Leds", 10))
     fstr20(string("pins=DISP_A:%d..P%d,DISP_B:%d..P%d,RPI_RX:%d,RPI_TX:%d,CAMERA_LED:%d,LED:%d,SDA:%d,SCL:%d,VOLT1_P:%d,VOLT2_P:%d,LEFT_MOT:%d,RIGHT_MOT:%d,LEFT_ENC_A:%d,LEFT_ENC_B:%d,RIGHT_ENC_A:%d,RIGHT_ENC_B:%d,ONE_WIRE:%d,BUZZER_PIN:%d", 10), ...
                   DISPLAYA_BASE_PIN, DISPLAYA_BASE_PIN + 8, DISPLAYB_BASE_PIN, DISPLAYB_BASE_PIN + 8, RPI_RX, RPI_TX, CAMERA_LED, LED, SDA, SCL, VOLT1_P, VOLT2_P, LEFT_MOT, RIGHT_MOT, LEFT_ENC_A, LEFT_ENC_B, RIGHT_ENC_A, RIGHT_ENC_B, ONE_WIRE, BUZZER_PIN)
+    term.fstr5(string("led_config=Total:%d=Head:%d, Body:%d, Base:%d, Cam:%d", 10), TOTAL_LEDS, HEAD_LEDS, BODY_LEDS, BASE_LEDS, CAM_LEDS)
 
     tone(50, 1000, 50)
     tone(60, 750, 100)
