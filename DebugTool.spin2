@@ -1,12 +1,10 @@
 '' =================================================================================================
 ''
-''   File....... Kevinbot_v3.spin2
+''   File....... DebugTool.spin2
 ''   Purpose.... Code for Kevinbot v3
 ''   Author..... Kevin Ahr
-''               Copyright (c) 2022 Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
 ''               -- see below for terms of use
-''   E-mail..... meowmeowahr@gmail.com
-''   Started.... 06 JUN 2022
 ''
 ''   {$P2}
 ''

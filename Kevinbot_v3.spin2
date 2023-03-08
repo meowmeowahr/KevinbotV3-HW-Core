@@ -3,9 +3,8 @@
 ''   File....... Kevinbot_v3.spin2
 ''   Purpose.... Code for Kevinbot v3
 ''   Author..... Kevin Ahr
-''               Copyright (c) 2022 Kevin Ahr
+''               Copyright (c) 2022 - 2023 Kevin Ahr
 ''               -- see below for terms of use
-''   E-mail..... meowmeowahr@gmail.com
 ''   Started.... 06 JUN 2022
 ''
 ''   {$P2}
@@ -13,7 +12,7 @@
 '' =================================================================================================
 
 
-{
+{{
 
   PCA9685 Servo Config
   0  1  2  3  4  5  6  7  8  9  10  11  12  13  14  15
@@ -22,7 +21,7 @@
         '              '          '
     Left Arm       Right Arm     Head
 
-}
+}}
 
 
 {{
