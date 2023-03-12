@@ -51,11 +51,6 @@ con { fixed io pins }
 
 con { app io pins }
 
-  DISPLAYA_BASE_PIN = 0                                         ' 240x240 displays
-  DISPLAYB_BASE_PIN = 8
-  DISPLAY_LIGHT_PIN = 31                                        ' BL Pin
-  DISPLAY_LIGHT_FRQ = 1000                                      ' BL Hz
-
   RPI_TX            = 6  { I }                                  ' Raspberry Pi
   RPI_RX            = 5  { O }
 
@@ -114,11 +109,6 @@ obj
   rpi     : "jm_fullduplexserial"                               ' * serial IO for RPi
   ansi    : "jm_ansi"                                           '   ANSI terminal control sequences
 
-  disp_a  : "Wave_16b240x240LCDDrv"                             ' * ST7796 TFT LCD driver
-  disp_b  : "Wave_16b240x240LCDDrv"                             '   ST7796 TFT LCD driver
-  graphic : "Graphics"                                          '   graphics for tfts
-  eye_pwm : "jm_pwm"                                            '   pwm for displays
-
   strs    : "ka_strings"                                        '   string manipulation
   timer1  : "jm_ez_timer"                                       '   timer
   prng    : "jm_prng"                                           '   TEMPORARY RNG
@@ -145,8 +135,6 @@ obj
 
 
 dat
-
-  screen        byte     $00[ disp_a.BUFFER_SIZE ]
 
   Version       byte     "version=v0.1.0", 10, 0                ' version
 
@@ -231,8 +219,8 @@ pub check_serial() | index, i, v, vn, len, c
     term.fstr1(string("chip=%s", 10), string("Propeller 2"))
     term.str(string("root=P2 Kevinbot Board", 10))
     term.str(string("leds=WS1812B Leds", 10))
-    fstr20(string("pins=DISP_A:%d..P%d,DISP_B:%d..P%d,RPI_RX:%d,RPI_TX:%d,CAMERA_LED:%d,LED:%d,SDA:%d,SCL:%d,VOLT1_P:%d,VOLT2_P:%d,LEFT_MOT:%d,RIGHT_MOT:%d,LEFT_ENC_A:%d,LEFT_ENC_B:%d,RIGHT_ENC_A:%d,RIGHT_ENC_B:%d,ONE_WIRE:%d,BUZZER_PIN:%d", 10), ...
-                  DISPLAYA_BASE_PIN, DISPLAYA_BASE_PIN + 8, DISPLAYB_BASE_PIN, DISPLAYB_BASE_PIN + 8, RPI_RX, RPI_TX, CAMERA_LED, LED, SDA, SCL, VOLT1_P, VOLT2_P, LEFT_MOT, RIGHT_MOT, LEFT_ENC_A, LEFT_ENC_B, RIGHT_ENC_A, RIGHT_ENC_B, ONE_WIRE, BUZZER_PIN)
+    fstr16(string("pins=DISP_A:%d..P%d,DISP_B:%d..P%d,RPI_RX:%d,RPI_TX:%d,CAMERA_LED:%d,LED:%d,SDA:%d,SCL:%d,VOLT1_P:%d,VOLT2_P:%d,LEFT_MOT:%d,RIGHT_MOT:%d,LEFT_ENC_A:%d,LEFT_ENC_B:%d,RIGHT_ENC_A:%d,RIGHT_ENC_B:%d,ONE_WIRE:%d,BUZZER_PIN:%d", 10), ...
+                  RPI_RX, RPI_TX, CAMERA_LED, LED, SDA, SCL, VOLT1_P, VOLT2_P, LEFT_MOT, RIGHT_MOT, LEFT_ENC_A, LEFT_ENC_B, RIGHT_ENC_A, RIGHT_ENC_B, ONE_WIRE, BUZZER_PIN)
     term.fstr5(string("led_config=Total:%d=Head:%d, Body:%d, Base:%d, Cam:%d", 10), TOTAL_LEDS, HEAD_LEDS, BODY_LEDS, BASE_LEDS, CAM_LEDS)
 
     tone(50, 1000, 50)
@@ -249,8 +237,6 @@ pub tone(amp, freq, length)
 
 
 pub update_cog()
-
-  setup_display()                                                           ' setup display after starting cogs
 
   waitms(500)
 
@@ -368,8 +354,8 @@ pub get_msg(p_dest, maxlen) : len | k
         return
 
 
-pub fstr20(p_str, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, ...
-           arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20)
+pub fstr16(p_str, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, ...
+           arg11, arg12, arg13, arg14, arg15, arg16)
 
 '' Emit string with formatting characters and six arguments.
 
@@ -400,27 +386,6 @@ pub setup() | r, ch
     error_state := 3
 
   pca.start(SCL, SDA, 100, pca.PU_1K5)
-
-  eye_pwm.start(DISPLAY_LIGHT_PIN, 255, 1000, eye_pwm.M_SAW)
-
-
-pub setup_display()
-
-'' init displays with the same buffer, and set them to black
-
-  disp_a.setup(DISPLAYA_BASE_PIN)
-  disp_a.addScreenBuffer(@screen)
-  disp_a.writeBuffer(0, disp_a.BUFFER_SIZE )
-
-  disp_b.setup(DISPLAYB_BASE_PIN)
-  disp_b.addScreenBuffer(@screen)
-  disp_b.writeBuffer(0, disp_b.BUFFER_SIZE )
-
-  dispa_pix := disp_a.loadPixelPASM($130)
-  dispb_pix := disp_b.loadPixelPASM(dispa_pix)
-
-  disp_a.writeBuffer(0, disp_a.BUFFER_SIZE)
-  disp_b.writeBuffer(0, disp_a.BUFFER_SIZE)
 
 
 pub wait_for_terminal(clear)

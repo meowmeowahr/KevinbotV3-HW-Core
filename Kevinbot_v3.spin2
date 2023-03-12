@@ -362,37 +362,15 @@ dat { command tables }
 
 var { globals }
 
-  dispa_pix
-  dispb_pix
-
   long  scstack[128]
-  long  scstack2[128]
 
   byte  running
 
-  byte  eye_mode
-  byte  eye_radius
-  byte  iris_radius
-
-  byte  eye_speed
-
-  long  bg_color
-  long  iris_color
-  long  pupil_color
-
-  byte  eye_x
-  byte  eye_y
-  byte  eye_stage
-
   byte  serial_buf[BUFFER_SIZE]
-  byte  clean_buf[BUFFER_SIZE]
 
   byte  cmdstr[CMD_SIZE]                                        ' command as string
   byte  valstr[CMD_SIZE]                                        ' value as string
 
-  byte  eye_effect
-
-  byte  disp_cog
   byte  sens_cog
 
   long  pixbuf[TOTAL_LEDS]                                      ' pixel buffer
@@ -431,8 +409,6 @@ var { globals }
 
 pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
 
-  eye_mode, eye_radius, iris_radius, eye_speed := S_EYE_MODE, S_EYE_RADIUS, S_IRIS_RADIUS, S_MOVE_SPEED
-  bg_color, iris_color, pupil_color := S_BG_COLOR, S_IRIS_COLOR, S_PUPIL_COLOR
   light_update_head, light_update_body, head_effect, body_effect := S_LIGHT_UPDATE_HEAD, S_LIGHT_UPDATE_BODY, S_HEAD_EFFECT, S_BODY_EFFECT
   light_update_base, base_effect := S_LIGHT_UPDATE_BASE, S_BASE_EFFECT
   body_bright, base_bright := S_BODY_BRIGHTNESS, S_BASE_BRIGHTNESS
@@ -442,8 +418,7 @@ pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
 
   setup()
 
-  disp_cog := cogspin(newcog, display_cog(), @scstack)          ' display cog
-  sens_cog := cogspin(newcog, sensor_cog(), @scstack2)          ' sensor update cog
+  sens_cog := cogspin(newcog, sensor_cog(), @scstack)          ' sensor update cog
 
   if STARTUP_BEEP                                               ' make startup beeps
     tone(20, 1600, 100)
@@ -587,55 +562,6 @@ pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
               waitms(1050)
 
 
-pub display_cog()
-
-  setup_display()                                                           ' setup display after starting cogs
-
-  eye_x := (EYE_X_MIN + EYE_X_MAX) / 2
-  eye_stage := 0
-
-  graphic.convRGB(dispb_pix, 0, 0, 240, 240, 240, @image+134)               ' show Kevinbot image
-  disp_b.writeBuffer(0, disp_b.BUFFER_SIZE)
-  disp_a.writeBuffer(0, disp_a.BUFFER_SIZE)
-
-  waitms(500)
-
-  graphic.box(dispa_pix, 0, 0, disp_a.X_MAX, disp_a.Y_MAX, bg_color, bg_color) ' clear screen
-  disp_a.writeBuffer(0, disp_a.BUFFER_SIZE)
-  disp_b.writeBuffer(0, disp_a.BUFFER_SIZE)
-
-  repeat
-    ' eyes()
-
-    if eye_stage == 0
-      if eye_x-1 > EYE_X_MAX
-        eye_stage := 1
-
-      graphic.box(dispa_pix, 0, 0, disp_a.X_MAX, disp_a.Y_MAX, bg_color, bg_color)
-
-      graphic.circle(dispa_pix, eye_x, 120, iris_radius, iris_color, iris_color)
-      graphic.circle(dispa_pix, eye_x, 120, eye_radius, pupil_color, pupil_color)
-
-      disp_a.writeBuffer(0, disp_a.BUFFER_SIZE)
-      disp_b.writeBuffer(0, disp_b.BUFFER_SIZE)
-
-      eye_x += eye_speed
-
-    else
-      if eye_x-1 < EYE_X_MIN
-        eye_stage := 0
-
-      graphic.box(dispa_pix, 0, 0, disp_a.X_MAX, disp_a.Y_MAX, bg_color, bg_color)
-
-      graphic.circle(dispa_pix, eye_x, 120, iris_radius, iris_color, iris_color)
-      graphic.circle(dispa_pix, eye_x, 120, eye_radius, pupil_color, pupil_color)
-
-      disp_a.writeBuffer(0, disp_a.BUFFER_SIZE)
-      disp_b.writeBuffer(0, disp_b.BUFFER_SIZE)
-
-      eye_x -= eye_speed
-
-
 pub stop_robot()
 
   ' Shutdown robot, stop motors, stop cogs
@@ -648,7 +574,6 @@ pub stop_robot()
   fill_cam($00_00_00_00)
   left.write(left.M_USECS, 1500)
   right.write(right.M_USECS, 1500)
-  cogstop(disp_cog)
   cogstop(sens_cog)
 
 
@@ -660,21 +585,8 @@ pub check_serial() | index, i, v, vn, len, c
                                                                             ' get cmd index from command table
   case index
 
-    1:                                                                      ' eye_bg_color
-      bg_color := hex2val(@valstr)
-
-    2:                                                                      ' pupil_color
-      pupil_color := hex2val(@valstr)
-
-    3:                                                                      ' iris_color
-      iris_color := hex2val(@valstr)
-
-    4:                                                                      ' eye_speed
-      eye_speed := dec2val(@valstr)
-
-    5:
-      eye_radius := dec2val(@valstr)                                        ' eye_size
-      iris_radius := dec2val(@valstr) + 10
+    1..5:
+      ' COMMAND DEPRECATED
 
     6:
       rpi.str(@Version)                                                     ' robot_version (no value)
@@ -793,7 +705,7 @@ pub check_serial() | index, i, v, vn, len, c
       right.write(right.M_USECS, 1500)
 
     35:                                                                     ' eye_brightness
-      eye_pwm.write(dec2val(@valstr))
+      ' COMMAND DEPRECATED
 
 
 pub fill_body(color) | ch
@@ -1355,33 +1267,12 @@ pub setup() | r, ch
   if (byte[@HeadStartup][1] > 180) or (byte[@HeadStartup][1] < 0)
     error_state := 1
 
-  eye_pwm.start(DISPLAY_LIGHT_PIN, S_EYE_PWM_DUTY, DISPLAY_LIGHT_FRQ, eye_pwm.M_SAW)
-
   timer1.start()
   timer2.start()
   timer3.start()
   timer4.start()
   timer5.start()
 
-
-pub setup_display()
-
-'' init displays with the same buffer, and set them to black
-
-  disp_a.setup(DISPLAYA_BASE_PIN)
-  disp_a.addScreenBuffer(@screen)
-  disp_a.writeBuffer(0, disp_a.BUFFER_SIZE )
-
-  disp_b.setup(DISPLAYB_BASE_PIN)
-  disp_b.addScreenBuffer(@screen)
-  disp_b.writeBuffer(0, disp_b.BUFFER_SIZE )
-
-  dispa_pix:=disp_a.loadPixelPASM($130)
-  dispb_pix:=disp_b.loadPixelPASM(dispa_pix)
-
-  graphic.box(dispa_pix,0, 0, disp_a.X_MAX, disp_a.Y_MAX, bg_color, bg_color)
-  disp_a.writeBuffer(0, disp_a.BUFFER_SIZE)
-  disp_b.writeBuffer(0, disp_a.BUFFER_SIZE)
 
 
 pub wait_for_terminal(clear)
@@ -1405,12 +1296,6 @@ pub clear_screen()
     term.str(ansi.hide_cursor())
     term.str(ansi.home())
     term.str(ansi.cls())
-
-
-dat
-
-  image
-  file "KevinbotEye.bmp"
 
 
 con { license }
