@@ -5,9 +5,7 @@
 ''   Author..... Kevin Ahr
 ''               Copyright (c) 2022 Kevin Ahr
 ''               -- see below for terms of use
-''   E-mail..... meowmeowahr@gmail.com
 ''   Started.... 27 MAY 2022
-''   Updated.... 17 JUN 2022
 ''
 ''   {$P2}
 ''
@@ -39,6 +37,38 @@ pub containschar(char, str) : out | i, size
 
   return out
 
+
+pub charcount(char, str) : out | i, size
+
+  size := strsize(str)
+  repeat i from 0 to size
+    if byte[str][i] == char
+      out += 1
+
+  return out
+
+
+pub split_str(str, p_list, sep) : c | size, seps, i, j, k, prev_sep
+
+  bytefill(p_list, 0, strsize(p_list))                           ' reset data
+
+  size := strsize(str)
+  prev_sep := 0
+  j := 0
+  k := 0
+
+  ' get seps
+  repeat i from 0 to size
+    if byte[str][i] == sep
+      pint(56)
+      repeat j from prev_sep to i - 1
+        byte[p_list][j] := byte[str][j]
+
+      prev_sep := i
+    k++
+
+
+  return c
 
 pub split_str2(str, sep, p_d0, p_d1) | len, i, c, vn
 
