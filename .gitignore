@@ -1,0 +1,9 @@
+# VSCode
+.vscode/
+
+# PNut
+Error.txt
+
+# FlexProp
+*.binary
+*.p2asm
