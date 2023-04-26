@@ -1,0 +1,61 @@
+'' =================================================================================================
+''
+''   File....... Kevinbot_Motors_Test.spin2
+''   Purpose.... Kevinbot v3 Motor Sweep Test
+''   Notes...... Do not run when wheels are touching the ground
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''               -- see below for terms of use
+''   Started.... 22 APR 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { timing }
+
+  CLK_FREQ = 200_000_000                                        ' system freq as a constant
+  MS_001   = CLK_FREQ / 1_000                                   ' ticks in 1ms
+  US_001   = CLK_FREQ / 1_000_000                               ' ticks in 1us
+
+  _clkfreq = CLK_FREQ                                           ' set system clock
+
+
+con { terminal }
+
+  BR_TERM  = 230_400                                            ' terminal baud rate
+  BR_RPI   = 230_400                                            ' raspberrypi / xbee baud rate
+
+  #0, T_PST, T_ANSI                                             ' terminal types
+
+  T_TYPE = T_PST
+
+con { pins }
+
+  BASE     = 0
+
+
+obj
+  
+' main                                                          ' * master Spin cog     
+  motor : "Kevinbot_Motors"
+
+pub main() | i
+  
+  setup()
+
+  repeat
+    repeat i from -1000 to 1000
+      motor.set_speed_a(i)
+      motor.set_speed_b(i)
+      waitms(5)
+    repeat i from 1000 to -1000 
+      motor.set_speed_a(i)
+      motor.set_speed_b(i)      
+      waitms(5)
+
+pub setup()
+  
+  motor.start(BASE, 20, motor.M_TRI)
+  motor.set_speed_limit(995)

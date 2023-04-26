@@ -1,0 +1,184 @@
+'' =================================================================================================
+''
+''   File....... Kevinbot_Motors.spin2
+''   Purpose.... Universal Motor Driver code for Kevinbot v3
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''               -- see below for terms of use
+''   Started.... 21 APR 2023
+''
+''   Credits.... Based on motor control code by Michael Mulholland
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { pwm modes }
+
+  #0, LOW, HIGH
+  #0, M_SAW, M_TRI                                              ' pwm modes
+
+
+con { pin offsets }
+  
+  OFF_SENSE_U      = 0
+  OFF_SENSE_V      = 1
+  OFF_SENSE_W      = 2
+  OFF_SENSE_X      = 3
+  OFF_SENSE_COMMON = 4
+  OFF_HALL_U       = 5
+  OFF_HALL_V       = 6
+  OFF_HALL_W       = 7
+  OFF_PWM_UL       = 8
+  OFF_PWM_UH       = 9
+  OFF_PWM_VL       = 10
+  OFF_PWM_VH       = 11
+  OFF_PWM_WL       = 12
+  OFF_PWM_WH       = 13
+  OFF_PWM_XL       = 14
+  OFF_PWM_XH       = 15
+
+
+var
+
+  byte  mtrah                                                   ' motor a high
+  byte  mtral                                                   ' motor a low
+  byte  mtrbh                                                   ' motor b high
+  byte  mtrbl                                                   ' motor b low
+  byte  mtrch                                                   ' motor c high
+  byte  mtrcl                                                   ' motor c low
+  byte  mtrdh                                                   ' motor d high
+  byte  mtrdl                                                   ' motor d low
+  byte  setup                                                   ' true when pins setup
+  long  speed_a                                                 ' last speed setting
+  long  speed_b                                                 ' last speed setting
+  long  limit                                                   ' speed limit setting
+
+
+pub start(base, khz, mode)
+  
+'' Start motor driver with base pin
+'' -- base: base pin of universal motor driver
+'' -- khz : pwm frequency in kilohertz
+'' -- mode: pwm [counter] mode; 0 for sawtooth, 1 for triangle
+
+  startx(base + OFF_PWM_XH, base + OFF_PWM_XL, base + OFF_PWM_WH, base + OFF_PWM_WL, base + OFF_PWM_VH, base + OFF_PWM_VL, base + OFF_PWM_UH, base + OFF_PWM_UL, khz, mode)
+
+pub startx(ah, al, bh, bl, ch, cl, dh, dl, kHz, mode) : result | x
+
+'' Start dc motor driver
+'' -- ah and al are motor control (pwm) pins a, (h)igh and (l)ow side
+'' -- bh and bl are motor control (pwm) pins b, (h)igh and (l)ow side
+'' -- ch and cl are motor control (pwm) pins b, (h)igh and (l)ow side
+'' -- dh and dl are motor control (pwm) pins b, (h)igh and (l)ow side
+'' -- kHz is pwm frequency in kilohertz
+'' -- mode is pwm [counter] mode; 0 for sawtooth, 1 for triangle
+
+  stop()
+
+  mtrah, mtral, mtrbh, mtrbl := ah, al, bh, bl                  ' copy pins
+  mtrch, mtrcl, mtrdh, mtrdl := ch, cl, dh, dl                  ' copy pins
+
+  x.word[0] := 1 #> ((clkfreq/(kHz*1000)) / 100_0) <# $FFFF     ' set unit timing
+  x.word[1] := 100_0                                            ' set units (0.1%)
+
+  if (mode == M_SAW)
+    pinstart(mtrah, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrah pin to pwm, duty = 0
+    pinstart(mtral, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtral pin to pwm, duty = 0
+    pinstart(mtrbh, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrbh pin to pwm, duty = 0
+    pinstart(mtrbl, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrbl pin to pwm, duty = 0
+    pinstart(mtrch, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrch pin to pwm, duty = 0
+    pinstart(mtrcl, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrcl pin to pwm, duty = 0
+    pinstart(mtrdh, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrdh pin to pwm, duty = 0
+    pinstart(mtrdl, P_OE | P_PWM_SAWTOOTH, x, 0)                ' set mtrdl pin to pwm, duty = 0
+  else
+    x.word[0] >>= 1                                             ' adjust for triangle
+    pinstart(mtrah, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtral, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtrbh, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtrbl, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtrch, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtrcl, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtrdh, P_OE | P_PWM_TRIANGLE, x, 0)
+    pinstart(mtrdl, P_OE | P_PWM_TRIANGLE, x, 0)
+
+  setup := true                                                 ' mark setup
+  limit := 1_000                                                ' set default speed limit
+
+pub stop()
+
+  if (setup)
+    pinclear(mtrah)                                             ' clear motor pins
+    pinclear(mtral)
+    pinclear(mtrbh)                                             ' clear motor pins
+    pinclear(mtrbl)
+    pinclear(mtrch)                                             ' clear motor pins
+    pinclear(mtrcl)
+    pinclear(mtrdh)                                             ' clear motor pins
+    pinclear(mtrdl)
+
+  bytefill(@mtrah, 0, 10)                                        ' mark stopped
+  speed_a := 0
+  speed_b := 0
+
+  setup := false
+
+
+pub set_speed_a(spd)
+
+'' Set motor a speed in 0.1% increments (-100_0 to 100_0)
+
+  speed_a := -100_0 #> spd <# 100_0                             ' limit range
+
+  if (speed_a < 0)                                              ' reverse
+    wypin(mtrah, 100_0)                                         ' - high side on, pwm on low side
+    wypin(mtral, 0)
+    wypin(mtrbh, 0)
+    wypin(mtrbl, -speed_a)
+
+
+  elseif (speed_a == 0)                                         ' stop
+    wypin(mtrah, 0)                                             ' - all pins low
+    wypin(mtral, 0)
+    wypin(mtrbh, 0)
+    wypin(mtrbl, 0)
+
+  else { speed_a > 0 }                                          ' forward
+    wypin(mtrah, 0)                                             ' - low side on, pwm on high side
+    wypin(mtral, 100_0)
+    wypin(mtrbh, speed_a)
+    wypin(mtrbl, 0)
+
+
+pub set_speed_b(spd)
+
+'' Set motor b speed in 0.1% increments (-100_0 to 100_0)
+
+  speed_b := -100_0 #> spd <# limit                             ' limit range
+
+  if (speed_b < 0)                                              ' reverse
+    wypin(mtrch, 100_0)                                         ' - high side on, pwm on low side
+    wypin(mtrcl, 0)
+    wypin(mtrdh, 0)
+    wypin(mtrdl, -speed_b)
+
+
+  elseif (speed_b == 0)                                         ' stop
+    wypin(mtrch, 0)                                             ' - all pins low
+    wypin(mtrcl, 0)
+    wypin(mtrdh, 0)
+    wypin(mtrdl, 0)
+
+  else { speed_b > 0 }                                          ' forward
+    wypin(mtrch, 0)                                             ' - low side on, pwm on high side
+    wypin(mtrcl, 100_0)
+    wypin(mtrdh, speed_b)
+    wypin(mtrdl, 0)
+
+
+pub set_speed_limit(max)
+  
+'' Sets a max speed in 0.1% increments
+
+  limit := 0 #> max <# limit                                      ' limit range
