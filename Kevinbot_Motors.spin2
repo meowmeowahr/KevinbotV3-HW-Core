@@ -56,6 +56,11 @@ var
   long  limit                                                   ' speed limit setting
 
 
+pub null()
+
+  '' This is not a top-level object
+
+
 pub start(base, khz, mode)
   
 '' Start motor driver with base pin
@@ -105,6 +110,9 @@ pub startx(ah, al, bh, bl, ch, cl, dh, dl, kHz, mode) : result | x
 
   setup := true                                                 ' mark setup
   limit := 1_000                                                ' set default speed limit
+
+  debug(zstr, "[MOTOR] Initialized Motors")
+  debug(10,13,"[MOTOR] Pins: " , udec(ah, al, bh, bl))
 
 pub stop()
 
@@ -182,3 +190,5 @@ pub set_speed_limit(max)
 '' Sets a max speed in 0.1% increments
 
   limit := 0 #> max <# limit                                      ' limit range
+
+  debug(10,13,"[MOTOR] Speed Limit: " , udec(limit))
