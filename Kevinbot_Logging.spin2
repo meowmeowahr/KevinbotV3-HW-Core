@@ -1,0 +1,102 @@
+'' =================================================================================================
+''
+''   File....... Kevinbot_Logging.spin2
+''   Purpose.... Kevinbot v3 Logging
+''   Notes...... Simple logging via terminal
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''               -- see below for terms of use
+''   Started.... 26 APR 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+con { logging modes }
+
+  #0, M_DEBUG, M_INFO, M_WARNING, M_ERROR, M_CRITICAL                           ' logging modes
+  #0, T_PST, T_ANSI                                                             ' terminal types
+
+var
+
+  byte level
+  byte ttype
+
+
+obj
+
+  term    : "jm_fullduplexserial"                                               ' * serial IO for terminal
+  ansi    : "jm_ansi"                                                           '   ANSI terminal control sequences
+
+' * uses cog when loaded
+
+pub null()
+
+'' This is not a top-level object
+
+
+pub start(baud, type)
+
+  term.tstart(baud)                                                             ' start terminal io
+  ttype := type
+
+
+pub log(mode, source, text) | mode_str
+
+'' Log data using terminal
+
+  case mode
+    M_DEBUG   : mode_str := string("DEBUG")
+    M_INFO    : mode_str := string("INFO")
+    M_WARNING : mode_str := string("WARNING")
+    M_ERROR   : mode_str := string("ERROR")
+    M_CRITICAL: mode_str := string("CRITICAL")
+
+  if mode >= level
+    term.fstr3(string("[%s] [%s] %s", 10, 13), source, mode_str, text)
+
+
+pub log_with_dec(mode, source, text, dec) | mode_str
+
+'' Log data using terminal
+
+  case mode
+    M_DEBUG   : mode_str := string("DEBUG")
+    M_INFO    : mode_str := string("INFO")
+    M_WARNING : mode_str := string("WARNING")
+    M_ERROR   : mode_str := string("ERROR")
+    M_CRITICAL: mode_str := string("CRITICAL")
+
+  if mode >= level
+    term.fstr4(string("[%s] [%s] %s%d", 10, 13), source, mode_str, text, dec)
+
+
+pub set_level(new_level)
+
+'' Set new logging level
+
+  level := new_level
+
+  
+pub wait_for_terminal(clear)
+
+'' Wait for terminal to be open and key pressed
+
+  term.rxflush()
+  term.rx()
+  if (clear)
+    clear_screen()
+
+
+pub clear_screen()
+
+'' Move cursor home (upper left) and clear the terminal
+
+  if (ttype == T_PST)
+    term.tx(term.HOME)
+    term.tx(term.CLS)
+  else
+    term.str(ansi.hide_cursor())
+    term.str(ansi.home())
+    term.str(ansi.cls())
+
