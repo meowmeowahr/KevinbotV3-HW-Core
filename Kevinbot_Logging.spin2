@@ -71,6 +71,23 @@ pub log_with_dec(mode, source, text, dec) | mode_str
     term.fstr4(string("[%s] [%s] %s%d", 10, 13), source, mode_str, text, dec)
 
 
+pub flog1(mode, source, p_str, arg1) | mode_str
+
+'' Log data using terminal
+
+  case mode
+    M_DEBUG   : mode_str := string("DEBUG")
+    M_INFO    : mode_str := string("INFO")
+    M_WARNING : mode_str := string("WARNING")
+    M_ERROR   : mode_str := string("ERROR")
+    M_CRITICAL: mode_str := string("CRITICAL")
+
+  if mode >= level
+    term.fstr2(string("[%s] [%s] %s"), source, mode_str)
+    term.fstr1(p_str, arg1)
+    term.str(string(10, 13))
+
+
 pub set_level(new_level)
 
 '' Set new logging level
@@ -100,3 +117,28 @@ pub clear_screen()
     term.str(ansi.home())
     term.str(ansi.cls())
 
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}
