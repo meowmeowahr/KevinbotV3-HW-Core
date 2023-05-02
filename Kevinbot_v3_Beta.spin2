@@ -1,0 +1,203 @@
+'' =================================================================================================
+''
+''   File....... Kevinbot_Motors_Test.spin2
+''   Purpose.... Kevinbot v3 Motor Sweep Test
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''               -- see below for terms of use
+''   Started.... 26 APR 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { timing }
+
+  CLK_FREQ = 200_000_000                                                        ' system freq as a constant
+  MS_001   = CLK_FREQ / 1_000                                                   ' ticks in 1ms
+  US_001   = CLK_FREQ / 1_000_000                                               ' ticks in 1us
+
+  _clkfreq = CLK_FREQ                                                           ' set system clock
+
+
+con { terminal }
+
+  BR_TERM  = 230_400                                                            ' terminal baud rate
+  BR_RPI   = 230_400                                                            ' raspberrypi / xbee baud rate
+
+  #0, T_PST, T_ANSI                                                             ' terminal types
+
+  T_TYPE = T_PST
+
+
+con { settings }
+
+'' These are the default settings for Kevinbot v3
+'' Do not change these unless you know what you are doing
+
+  ' Startup Settings
+
+  S_SPEED_LIMIT = 995
+
+  ' Fixed Settings
+
+  LOG_LEVEL = log.M_DEBUG
+
+  BUFFER_SIZE   = 32                                                            ' command buffer size
+  CMD_SIZE      = 32                                                            ' max cmd and val name length
+
+
+var
+
+  ' cogs
+  long  update_scstack[128]
+  byte  update_cog
+
+  byte  serial_buf[BUFFER_SIZE]
+  byte  command_buf[CMD_SIZE]                                                   ' command as string
+  byte  value_buf[CMD_SIZE]                                                     ' value as string
+
+
+obj
+  
+' main                                                                          ' * master Spin cog     
+  log   : "Kevinbot_Logging"                                                    ' * Kevinbot v3 Terminal and Logging
+  pins  : "Kevinbot_Pins"                                                       '   Kevinbot v3 P2 Board Pinmap
+
+  motor : "Kevinbot_Motors"                                                     '   Kevinbot v3 Motor Control
+
+  beep  : "jm_pwm"                                                              '   error buzzer pwm
+
+  str   : "ka_strings"                                                          '   string manipulation
+
+  rpi   : "jm_fullduplexserial"                                                 ' * serial IO for RPi
+
+
+pub main()
+
+  setup()
+
+  log.wait_for_terminal(true)
+
+  ' log data
+  log.log(log.M_INFO, string("MAIN"), string("Kevinbot v3 has started!"))
+
+  log.flog1(log.M_INFO, string("SERIAL"), string("Term Baud: %d"), BR_TERM)
+  log.flog1(log.M_INFO, string("SERIAL"), string("Pi Baud: %d"), BR_RPI)
+
+  log.flog1(log.M_DEBUG, string("MOTION"), string("Speed limit is: %d"), S_SPEED_LIMIT)
+
+  ' start cogs
+  update_cog := cogspin(newcog, update_loop(), @update_scstack)
+  log.log(log.M_INFO, string("COGS"), string("Update Cog has started!"))
+
+  ' startup
+  tone(20, 1600, 100)
+  tone(20, 800, 150)
+  tone(20, 1000, 100)
+
+  repeat
+    get_msg(@serial_buf)
+    str.split_str2(@serial_buf, "=", @command_buf, @value_buf)                  ' get message from serial
+    log.flog1(log.M_DEBUG, string("SERIAL"), string("Command: %s"), @command_buf)
+    log.flog1(log.M_DEBUG, string("SERIAL"), string("Value: %s"), @value_buf)
+
+
+pub update_loop()
+
+  repeat  
+    if true
+      'error.beep(get_error())
+
+
+pub get_msg(p_dest) : len | c
+
+'' Receive message from serial into p_dest
+
+  bytefill(p_dest, 0, BUFFER_SIZE)                                              ' clear buffer
+
+
+  repeat BUFFER_SIZE-1
+    c := rpi.rx()                                                               ' look for message
+    if c
+      case c
+        0..12 :
+          ifnot c == 8                                                          ' backspace
+            byte[p_dest][len++] := c                                            ' add to string
+            if (c == $0D)                                                       ' if end of hrc
+              return                                                            '  done!
+          else
+            byte[p_dest][len--] := c                                            ' remove from string
+            next
+
+        13 :                                                                    ' ignore cr
+          return
+
+        14..26 :
+          byte[p_dest][len++] := c                                              ' add to string
+          if (c == $0D)                                                         ' if end of hrc
+            return                                                              '  done!
+
+        27 :                                                                    ' ignore spaces
+          return
+
+        28..126 :
+          byte[p_dest][len++] := c                                              ' add to string
+          if (c == $0D)                                                         ' if end of hrc
+            return                                                              '  done!
+
+        -1 :
+          return
+    else
+      return
+
+
+pub get_error() : err
+
+  return 1
+
+
+pub tone(amp, freq, length)
+
+  beep.start(pins.BEEPER, amp, freq, beep.M_TRI)
+  waitms(length)
+  beep.write(0)
+
+
+pri setup()
+
+  log.start(BR_TERM, T_TYPE)
+  log.set_level(LOG_LEVEL)
+
+  rpi.start(pins.RPI_RX, pins.RPI_TX, %0000, BR_RPI)                                      ' start serial for rpi
+  motor.start(pins.MOTOR_BASE, 20, motor.M_TRI)
+
+
+  motor.set_speed_limit(S_SPEED_LIMIT)
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}
