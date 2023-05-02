@@ -7,3 +7,4 @@ Error.txt
 # FlexProp
 *.binary
 *.p2asm
+*.lst
