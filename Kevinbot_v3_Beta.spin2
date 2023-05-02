@@ -108,7 +108,66 @@ pub update_loop()
 
   repeat  
     if true
-      'error.beep(get_error())
+      if get_error() == 1
+        repeat
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(1050)
+      elseif get_error() == 3
+        repeat
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(1050)
+      elseif get_error() == 4
+        repeat
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(1050)
+      elseif get_error() == 5
+        repeat
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(1050)
+      elseif get_error() == 6
+        repeat
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 100)
+          waitms(1050)
+      elseif get_error() == 7
+        repeat
+          tone(50, 2000, 100)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(500)
+          tone(50, 2000, 1000)
+          waitms(1050)
 
 
 pub get_msg(p_dest) : len | c
