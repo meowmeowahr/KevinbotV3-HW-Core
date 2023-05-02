@@ -56,21 +56,6 @@ pub log(mode, source, text) | mode_str
     term.fstr3(string("[%s] [%s] %s", 10, 13), source, mode_str, text)
 
 
-pub log_with_dec(mode, source, text, dec) | mode_str
-
-'' Log data using terminal
-
-  case mode
-    M_DEBUG   : mode_str := string("DEBUG")
-    M_INFO    : mode_str := string("INFO")
-    M_WARNING : mode_str := string("WARNING")
-    M_ERROR   : mode_str := string("ERROR")
-    M_CRITICAL: mode_str := string("CRITICAL")
-
-  if mode >= level
-    term.fstr4(string("[%s] [%s] %s%d", 10, 13), source, mode_str, text, dec)
-
-
 pub flog1(mode, source, p_str, arg1) | mode_str
 
 '' Log data using terminal
