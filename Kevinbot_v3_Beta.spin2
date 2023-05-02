@@ -59,6 +59,14 @@ var
   byte  value_buf[CMD_SIZE]                                                     ' value as string
 
 
+dat { commands }
+
+  NumCmds       byte    1                                                       ' number of commands in table
+
+  Commands
+                byte    "pint"   , 0                                            ' command table
+                byte    0
+
 obj
   
 ' main                                                                          ' * master Spin cog     
@@ -74,7 +82,7 @@ obj
   rpi   : "jm_fullduplexserial"                                                 ' * serial IO for RPi
 
 
-pub main()
+pub main() | index
 
   setup()
 
@@ -100,8 +108,12 @@ pub main()
   repeat
     get_msg(@serial_buf)
     str.split_str2(@serial_buf, "=", @command_buf, @value_buf)                  ' get message from serial
-    log.flog1(log.M_DEBUG, string("SERIAL"), string("Command: %s"), @command_buf)
+    index := cmd_index(@command_buf, @Commands, NumCmds)                        ' get index
+    log.flog1(log.M_DEBUG, string("SERIAL"), string("Command: %s"), command_buf)
     log.flog1(log.M_DEBUG, string("SERIAL"), string("Value: %s"), @value_buf)
+
+    case index
+      1: pint(dec2val(@value_buf))
 
 
 pub update_loop()
@@ -214,7 +226,7 @@ pub get_msg(p_dest) : len | c
 
 pub get_error() : err
 
-  return 1
+  return 0
 
 
 pub tone(amp, freq, length)
@@ -222,6 +234,65 @@ pub tone(amp, freq, length)
   beep.start(pins.BEEPER, amp, freq, beep.M_TRI)
   waitms(length)
   beep.write(0)
+
+
+pub cmd_index(p_src, p_list, nc) : idx | byte buf[CMD_SIZE], x, c
+
+'' Convert command string into value
+'' -- not case sensitive
+'' -- returns 1..n if found in command table
+'' -- returns 0 (false) if not found
+
+  bytemove(@buf, p_src, strsize(p_src)+1)                       ' copy string + terminator
+
+  x := 0
+  repeat
+    c := buf[x]
+    if (c == 0)                                                 ' end of string
+      quit
+    elseif ((c >= "A") && (c <= "Z"))                           ' if uppercase
+      buf[x] += 32                                              '  make lowercase
+    x++
+
+  repeat nc
+    if (strcomp(@buf, p_list))
+      return idx+1
+    else
+      idx += 1                                                  ' update index
+      p_list += strsize(p_list) + 1                             ' update list pointer
+
+  return 0
+
+
+pub dec2val(p_src) : result | df, sign, c
+
+'' Convert decimal string to numeric value
+
+  df   := false
+  sign := 1
+
+  repeat
+    c := byte[p_src++]
+    case c
+      " ", "=" :
+        if (df)
+          quit
+
+      "-" :
+        if (df)
+          quit
+        else
+          sign := -1
+          df := true
+
+      "0".."9" :
+        result := result * 10 + (c - "0")
+        df := true
+
+      0, $0D :                                                  ' end of string
+        quit
+
+  result *= sign
 
 
 pri setup()
