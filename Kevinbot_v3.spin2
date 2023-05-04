@@ -44,7 +44,7 @@
 
 con { timing }
 
-  CLK_FREQ = 250_000_000                                        ' system freq as a constant
+  CLK_FREQ = 200_000_000                                        ' system freq as a constant
   MS_001   = CLK_FREQ / 1_000                                   ' ticks in 1ms
   US_001   = CLK_FREQ / 1_000_000                               ' ticks in 1us
 
@@ -82,22 +82,19 @@ con { fixed io pins }
 
 con { app io pins }
 
-  DISPLAYA_BASE_PIN = 0                                         ' 240x240 displays
-  DISPLAYB_BASE_PIN = 8
-  DISPLAY_LIGHT_PIN = 31                                        ' BL Pin
-  DISPLAY_LIGHT_FRQ = 1000                                      ' BL Hz
+  MOTOR_BASE        = 0  { + }
 
-  RPI_TX            = 6  { I }                                  ' Raspberry Pi
-  RPI_RX            = 5  { O }
+  RPI_TX            = 16  { I }                                 ' Raspberry Pi
+  RPI_RX            = 17  { O }
 
-  CAMERA_LED        = 14  { O }                                 ' camera ring / lights
-  LED               = 19  { O }                                 ' all robot leds (daisy-chained)
+  CAMERA_LED        = -1  { O }                                 ' camera ring / lights
+  LED               = 28  { O }                                 ' all robot leds (daisy-chained)
 
-  SDA               = 15  { IO }                                ' i2c bus
-  SCL               = 16  { IO }
+  SDA               = 18  { IO }                                ' i2c bus
+  SCL               = 19  { IO }                                ' SCL pin must be +1 of SDA
 
-  VOLT1_P           = 17  { I }                                 ' voltage sensors
-  VOLT2_P           = 18  { I }
+  VOLT1_P           = -1  { I }                                 ' voltage sensors
+  VOLT2_P           = -1  { I }
 
   LEFT_MOT          = 20  { O }                                 ' hb25 motor control
   RIGHT_MOT         = 21  { O }
@@ -162,9 +159,7 @@ con { settings }
   '''    Sensor Settings     '''
 
   MONITOR_BATTS     = YES                                       ' use 1 or 2 battery sensors
-  MONITOR_BME       = YES                                       ' enable bme280 sensor
   MONITOR_TEMPS     = YES                                       ' enable 3x DS18b20
-  MONITOR_ANGLE     = YES                                       ' enable angle sensor (temp rng)
 
   SENSOR_UPDATE_INT = 4000                                      ' sensor update interval
 
@@ -212,11 +207,6 @@ obj
   rpi     : "jm_fullduplexserial"                               ' * serial IO for RPi
   ansi    : "jm_ansi"                                           '   ANSI terminal control sequences
 
-  disp_a  : "Wave_16b240x240LCDDrv"                             ' * ST7796 TFT LCD driver
-  disp_b  : "Wave_16b240x240LCDDrv"                             '   ST7796 TFT LCD driver
-  graphic : "Graphics"                                          '   graphics for tfts
-  eye_pwm : "jm_pwm"                                            '   pwm for displays
-
   strs    : "ka_strings"                                        '   string manipulation
   timer1  : "jm_ez_timer"                                       '   timer for leds
   timer2  : "jm_ez_timer"                                       '   timer for leds
@@ -235,7 +225,6 @@ obj
 
   volt1   : "jm_ez_analog"                                      '   smart pin analog input for voltage meter
   volt2   : "jm_ez_analog"                                      '   smart pin analog input for voltage meter
-  bme     : "bme280_I2C"
 
   left    : "jm_servo"                                          '   hb25 motor control
   right   : "jm_servo"                                          '   hb25 motor control
@@ -248,8 +237,6 @@ obj
 
 
 dat
-
-  screen        byte     $00[ disp_a.BUFFER_SIZE ]
 
   Banner        byte     "===============", 13
                 byte     "  Kevinbot v3  ", 13
@@ -427,8 +414,6 @@ pub main() | r, d, tc, tf, p, h, status, tc_left, tc_right, ta, tb, tc2, td, te
 
   if TERMINAL
     term.str(@Banner)
-
-  d := bme.sensor_config(bme.CONFIG_1)
 
   repeat
 
@@ -757,7 +742,7 @@ pub setx_head(ch, color, level)
   leds.setx(ch + BASE_LEDS + BODY_LEDS, color, level)
 
 
-pub update_sensors() | level1, level2, voltage1, voltage2, r, tc, tf, p, h
+pub update_sensors() | level1, level2, voltage1, voltage2, r, tc, tf, p, h, roll, pitch, yaw
 
   level1 := volt1.read()
   level2 := volt2.read()
@@ -767,16 +752,6 @@ pub update_sensors() | level1, level2, voltage1, voltage2, r, tc, tf, p, h
   if MONITOR_BATTS
     rpi.fstr2(string("batt_volts=%d,%d", 10), voltage1, voltage2)
     waitms(2)
-
-  if MONITOR_BME
-    r,tc,tf,p,h := bme.periodic_measurement()
-    if r
-      error_state := 4
-    rpi.fstr4(string("bme=%d,%d,%d,%d", 10), tc, tf, h, p)
-    waitms(2)
-
-  if MONITOR_ANGLE
-    rpi.fstr1(string("angle=%d", 10), prng.randomize(0, 90))
 
 
 pub sensor_cog() | ta, tb, tc_left, tc_right, tc_robot, status
@@ -1245,11 +1220,6 @@ pub setup() | r, ch
 
   lenc.start(LEFT_ENC_A, LEFT_ENC_B, -1, lenc.DETENT, 0, -1000, 1000)
   renc.start(RIGHT_ENC_A, RIGHT_ENC_B, -1, renc.DETENT, 0, -1000, 1000)
-
-
-  if r := bme.setup(SCL, SDA, 100, pca.PU_1K5, bme.BME280_I2C_ADDR)           ' setup bme280
-    debug("BME280 Setup failed , Error Code : " , udec(r))
-    error_state := 3
 
   pca.start(SCL, SDA, 100, pca.PU_1K5)
 
