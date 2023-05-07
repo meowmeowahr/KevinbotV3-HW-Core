@@ -82,7 +82,7 @@ con { fixed io pins }
 
 con { app io pins }
 
-  MOTOR_BASE        = 0  { + }
+  MOTOR_BASE        = 0   { + }
 
   RPI_TX            = 16  { I }                                 ' Raspberry Pi
   RPI_RX            = 17  { O }
@@ -93,8 +93,8 @@ con { app io pins }
   SDA               = 18  { IO }                                ' i2c bus
   SCL               = 19  { IO }                                ' SCL pin must be +1 of SDA
 
-  VOLT1_P           = -1  { I }                                 ' voltage sensors
-  VOLT2_P           = -1  { I }
+  VOLT1_P           = 37  { I }                                 ' voltage sensors
+  VOLT2_P           = 38  { I }
 
   LEFT_MOT          = 20  { O }                                 ' hb25 motor control
   RIGHT_MOT         = 21  { O }
