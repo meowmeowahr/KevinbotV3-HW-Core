@@ -161,7 +161,7 @@ con { settings }
   MONITOR_BATTS     = YES                                       ' use 1 or 2 battery sensors
   MONITOR_TEMPS     = YES                                       ' enable 3x DS18b20
 
-  SENSOR_UPDATE_INT = 4000                                      ' sensor update interval
+  SENSOR_UPDATE_INT = 3000                                      ' sensor update interval
 
   ''''''''''''''''''''''''''''''
 
