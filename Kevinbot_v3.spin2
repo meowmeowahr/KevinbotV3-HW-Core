@@ -84,11 +84,11 @@ con { app io pins }
 
   MOTOR_BASE        = 0   { + }
 
-  RPI_TX            = 16  { I }                                 ' Raspberry Pi
-  RPI_RX            = 17  { O }
+  RPI_TX            = 35  { I }                                 ' Raspberry Pi
+  RPI_RX            = 36  { O }
 
   CAMERA_LED        = -1  { O }                                 ' camera ring / lights
-  LED               = 28  { O }                                 ' all robot leds (daisy-chained)
+  LED               = 34  { O }                                 ' all robot leds (daisy-chained)
 
   SDA               = 18  { IO }                                ' i2c bus
   SCL               = 19  { IO }                                ' SCL pin must be +1 of SDA
@@ -134,7 +134,7 @@ con { settings }
 
   ''''''''''''''''''''''''''''''
 
-  '''  Startup LED Settings  '''
+  '''      LED Settings      '''
 
   S_LIGHT_UPDATE_HEAD = 200
   S_LIGHT_UPDATE_BODY = 200
@@ -154,6 +154,9 @@ con { settings }
   S_BODY_EFFECT     = 1
   S_BASE_EFFECT     = 1
 
+  #0, L_2811, L_2812
+  LED_TYPE          = L_2811
+
   ''''''''''''''''''''''''''''''
 
   '''    Sensor Settings     '''
@@ -170,10 +173,10 @@ con { settings }
   BUFFER_SIZE       = 32                                        ' command buffer size
   CMD_SIZE          = 32                                        ' max cmd and val name length
 
-  HEAD_LEDS         = 8                                         ' number of leds in head
-  BODY_LEDS         = 8                                         ' number of leds in body
-  CAM_LEDS          = 8                                         ' number of leds in camera ring
-  BASE_LEDS         = 8                                         ' number of leds in base
+  HEAD_LEDS         = 13                                        ' number of leds in head
+  BODY_LEDS         = 13                                        ' number of leds in body
+  CAM_LEDS          = 11                                        ' number of leds in camera ring
+  BASE_LEDS         = 13                                        ' number of leds in base
   TOTAL_LEDS        = HEAD_LEDS+BODY_LEDS+CAM_LEDS+BASE_LEDS    ' total leds in whole robot
 
   TERMINAL          = NO                                        ' enable terminal debug over usb
@@ -1210,7 +1213,10 @@ pub setup() | r, ch
 
   rpi.start(RPI_RX, RPI_TX, %0000, BR_RPI)                                    ' start serial for rpi
 
-  leds.start_2812b(@pixbuf, TOTAL_LEDS, LED, 5)
+  if LED_TYPE == L_2812
+    leds.start_2812b(@pixbuf, TOTAL_LEDS, LED, 5)
+  elseif LED_TYPE == L_2811
+    leds.start_2811(@pixbuf, TOTAL_LEDS, LED, 5)
 
   volt1.start(VOLT1_P, 0, 1000)                                               ' configure analog input for voltage
   volt2.start(VOLT2_P, 0, 1000)                                               ' configure analog input for voltage
