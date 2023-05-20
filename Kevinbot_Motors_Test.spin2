@@ -1,0 +1,87 @@
+'' =================================================================================================
+''
+''   File....... Kevinbot_Motors_Test.spin2
+''   Purpose.... Kevinbot v3 Motor Sweep Test
+''   Notes...... Do not run when wheels are touching the ground
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''               -- see below for terms of use
+''   Started.... 22 APR 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { timing }
+
+  CLK_FREQ = 200_000_000                                        ' system freq as a constant
+  MS_001   = CLK_FREQ / 1_000                                   ' ticks in 1ms
+  US_001   = CLK_FREQ / 1_000_000                               ' ticks in 1us
+
+  _clkfreq = CLK_FREQ                                           ' set system clock
+
+
+con { terminal }
+
+  BR_TERM  = 230_400                                            ' terminal baud rate
+  BR_RPI   = 230_400                                            ' raspberrypi / xbee baud rate
+
+  #0, T_PST, T_ANSI                                             ' terminal types
+
+  T_TYPE = T_PST
+
+con { pins }
+
+  BASE     = 0
+
+
+obj
+  
+' main                                                          ' * master Spin cog     
+  motor : "Kevinbot_Motors"
+
+pub main() | i
+  
+  setup()
+
+  repeat
+    repeat i from -1000 to 1000
+      motor.set_speed_a(i, 995)
+      motor.set_speed_b(i, 995)
+      waitms(5)
+    repeat i from 1000 to -1000 
+      motor.set_speed_a(i, 995)
+      motor.set_speed_b(i, 995)      
+      waitms(5)
+
+pub setup()
+  
+  motor.start(BASE, 20, motor.M_TRI)
+  motor.set_speed_limit(885)
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}
