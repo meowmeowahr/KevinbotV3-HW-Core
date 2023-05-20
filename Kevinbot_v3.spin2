@@ -103,23 +103,6 @@ con { settings }
   #true,  ON, OFF
   #false, NO, YES
 
-  '''  Startup Eye Settings  '''
-
-  S_EYE_MODE        = 1
-  EYE_X_MAX         = 180
-  EYE_X_MIN         = 60
-  S_EYE_RADIUS      = 35
-
-  S_IRIS_RADIUS     = 45
-  S_IRIS_COLOR      = $ffffff
-
-  S_BG_COLOR        = $0022ff
-  S_PUPIL_COLOR     = $000000
-
-  S_MOVE_SPEED      = 5
-
-  S_EYE_PWM_DUTY    = 255
-
   ''''''''''''''''''''''''''''''
 
   '''      LED Settings      '''
