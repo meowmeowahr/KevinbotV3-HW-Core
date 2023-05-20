@@ -82,32 +82,20 @@ con { fixed io pins }
 
 con { app io pins }
 
-  MOTOR_BASE        = 0   { + }
-
   RPI_TX            = 35  { I }                                 ' Raspberry Pi
   RPI_RX            = 36  { O }
 
-  CAMERA_LED        = -1  { O }                                 ' camera ring / lights
   LED               = 34  { O }                                 ' all robot leds (daisy-chained)
 
-  SDA               = 18  { IO }                                ' i2c bus
-  SCL               = 19  { IO }                                ' SCL pin must be +1 of SDA
+  SDA               = 41  { IO }                                ' i2c bus
+  SCL               = 42  { IO }                                ' SCL pin must be +1 of SDA
 
   VOLT1_P           = 37  { I }                                 ' voltage sensors
   VOLT2_P           = 38  { I }
 
-  LEFT_MOT          = 20  { O }                                 ' hb25 motor control
-  RIGHT_MOT         = 21  { O }
+  ONE_WIRE          = 39  { IO }                                ' one wire bus
 
-  LEFT_ENC_A        = 22  { I }                                 ' left motor encoder
-  LEFT_ENC_B        = 23  { I }
-
-  RIGHT_ENC_A       = 24  { I }                                 ' right motor encoder
-  RIGHT_ENC_B       = 25  { I }
-
-  ONE_WIRE          = 26  { IO }                                ' one wire bus
-
-  BUZZER_PIN        = 27  { O }                                 ' alert buzzer
+  BUZZER_PIN        = 40  { O }                                 ' alert buzzer
 
 
 con { settings }
@@ -228,11 +216,6 @@ obj
 
   volt1   : "jm_ez_analog"                                      '   smart pin analog input for voltage meter
   volt2   : "jm_ez_analog"                                      '   smart pin analog input for voltage meter
-
-  left    : "jm_servo"                                          '   hb25 motor control
-  right   : "jm_servo"                                          '   hb25 motor control
-  lenc    : "jm_quadrature"                                     '   motor enc
-  renc    : "jm_quadrature"                                     '   motor enc
 
   tsns    : "jm_ds18b20"                                        '   1-Wire temperature sensor
 
@@ -560,8 +543,7 @@ pub stop_robot()
   fill_body($00_00_00_00)
   fill_head($00_00_00_00)
   fill_cam($00_00_00_00)
-  left.write(left.M_USECS, 1500)
-  right.write(right.M_USECS, 1500)
+  ' TODO: Add stop code
   cogstop(sens_cog)
 
 
@@ -662,10 +644,8 @@ pub check_serial() | index, i, v, vn, len, c
       light_update_base := dec2val(@valstr)
 
     25:                                                                     ' left_us
-      left.write(left.M_USECS, dec2val(@valstr))
 
     26:                                                                     ' right_us
-      right.write(right.M_USECS, dec2val(@valstr))
 
     27:                                                                     ' shutdown
       stop_robot()
@@ -689,8 +669,6 @@ pub check_serial() | index, i, v, vn, len, c
       rpi.fstr1(string("getms=%d", 10), getms())
 
     34:                                                                     ' stop
-      left.write(left.M_USECS, 1500)
-      right.write(right.M_USECS, 1500)
 
     35:                                                                     ' eye_brightness
       ' COMMAND DEPRECATED
@@ -1220,12 +1198,6 @@ pub setup() | r, ch
 
   volt1.start(VOLT1_P, 0, 1000)                                               ' configure analog input for voltage
   volt2.start(VOLT2_P, 0, 1000)                                               ' configure analog input for voltage
-
-  left.startx(LEFT_MOT, 1500)
-  right.startx(RIGHT_MOT, 1500)
-
-  lenc.start(LEFT_ENC_A, LEFT_ENC_B, -1, lenc.DETENT, 0, -1000, 1000)
-  renc.start(RIGHT_ENC_A, RIGHT_ENC_B, -1, renc.DETENT, 0, -1000, 1000)
 
   pca.start(SCL, SDA, 100, pca.PU_1K5)
 
