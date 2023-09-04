@@ -180,19 +180,22 @@ pub sensor_loop() | left, right, internal, owx_status
   case owx_status
     temp.BUS_SHORT:
       core_status := S_OW_SHORT
-      quit
+      return
     temp.BAD_RESET:
       core_status := S_OW_ERROR
-      quit
+      return
     temp.NO_DEVICE:
       core_status := S_OW_DNF
-      quit
+      return
+
+  ds_tm.start()
 
   repeat
-    waitms(1000)
-    left, right, internal := temp.read_temps()
-    debug_data3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
-    sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+    if ds_tm.millis() > sett.TEMP_SPEED
+      left, right, internal := temp.read_temps()
+      debug_data3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+      sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+      ds_tm.start()
 
 
 pub send_debugtool_data()
