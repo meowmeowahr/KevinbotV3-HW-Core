@@ -88,9 +88,6 @@ var { globals }
   byte core_status
 
   '' Cogs
-  byte  update_cog
-  long  update_stack[128]
-
   byte sensor_cog
   long sensor_stack[128]
 
@@ -120,26 +117,18 @@ pub main() | b1, b2
 
   core_status := S_OK
 
-  waitms(2000)
+  waitms(sett.STARTUP_DELAY)
 
   setup()
 
   ' Cogs
-  update_cog := cogspin(NEWCOG, update_loop, @update_stack)
   sensor_cog := cogspin(NEWCOG, sensor_loop, @sensor_stack)
 
   ' Init Data for DebugTool
   if sett.DEBUGTOOL
     send_debugtool_data()
 
-  repeat
-    waitct(0)
-
-
-pub update_loop()
-
-'' Tick and battery updates
-
+  ' Start timers
   tk_tm.start()
   bt_tm.start()
 
@@ -147,6 +136,9 @@ pub update_loop()
     if tk_tm.millis() >= sett.TICK_SPEED
       sys.fstr1(string("core.uptime=%d", 10), getsec())
       sys.fstr1(string("core.uptime_ms=%d", 10), getms())
+
+      debug_data1(string("core.uptime=%d", 10), getsec())
+      debug_data1(string("core.uptime_ms=%d", 10), getms())
 
       ifnot core_status == S_OK
         sys.fstr1(string("core.error=%d", 10), core_status)
