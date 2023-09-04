@@ -53,10 +53,56 @@ con
 
   #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF
 
+  MAX_COMMAND_PARTS = 10                                                        ' count, raw string, cmdStr, eCmd, 6 paramValues
+
+dat { Serial Queue }
+
+' user set variables at task init
+pRxByteStart            long    0
+nRxByteMax              long    0
+
+' TASK use variables
+
+pRxByteHead             long    0                                               ' our QUEUE control vars - received BYTEs
+nRxByteCount            long    0
+
+bInString               long    FALSE
+pNewStrStart            long    0
+
+pRsltStrStart           long    0
+
+bQueOverrun             long    FALSE
+bStrQueOverrun          long    FALSE
+
+nQStrHeadIdx            long    0                                               ' our QUEUE control vars - received strings
+nQStrTailIdx            long    0
+nQStrCount              long    0
+rxStrPtrSet             long    0[sett.RX_BUFF_LONGS]                           ' our circular buffer - ptrs to received strings
+
+serialRxBffr            byte    0[sett.RX_BUFF_BYTES]                           ' our circular buffer - received chars
+
+' task vars
+nTaskChr                long    0
+' tsk vars
+
+            '   pValues -> [0:nbrValues(1-n)]  (doesn't count "full string")    ENT_VALUE_CT_IDX
+            '              [1:pStr] -> "full string"                            ENT_RAWSTR_IDX
+            '              [2:pCmd] -> "cmd"                                    ENT_CMDSTR_IDX
+            '              [3:eCmd]                                             ENT_CMDENUM_IDX
+            '              [4:nValue1]                                          ENT_PARM1_IDX
+            '              [5:nValue2]                                          ENT_PARM2_IDX
+            '              [6:nValue3]                                          ENT_PARM3_IDX
+            '              [7:nValue4]                                          ENT_PARM4_IDX
+            '              [etc] - up to 6 max values
+
 
 dat
 
-  Version               byte    "v3.0.0-beta", 0                                ' Core version
+Version                 byte    "v3.0.0-beta", 0                                ' Core version
+
+rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
+rxCmdBuffer             byte    0[sett.RX_MAX_CMD]
+rxValueBuffer           byte    0[sett.RX_MAX_VAL]
 
 
 obj
@@ -88,16 +134,19 @@ var { globals }
   byte core_status
 
   '' Cogs
-  byte sensor_cog
+  byte sensor_cog_id
   long sensor_stack[128]
+
+  byte rx_cog_id
+  long taskStack[128]
 
   '' Tick
   long  last_core_tick
   long  last_system_tick
 
   '' Driver Init
-  byte  term_cog
-  byte  sys_serial_cog
+  byte  term_cog_id
+  byte  sys_serial_cog_id
 
   '' Batteries
   long  batt_1_voltage
@@ -122,7 +171,8 @@ pub main() | b1, b2
   setup()
 
   ' Cogs
-  sensor_cog := cogspin(NEWCOG, sensor_loop, @sensor_stack)
+  sensor_cog_id := cogspin(NEWCOG, sensor_loop, @sensor_stack)
+  rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
 
   ' Init Data for DebugTool
   if sett.DEBUGTOOL
@@ -133,6 +183,7 @@ pub main() | b1, b2
   bt_tm.start()
 
   repeat
+    ' Tick
     if tk_tm.millis() >= sett.TICK_SPEED
       sys.fstr1(string("core.uptime=%d", 10), getsec())
       sys.fstr1(string("core.uptime_ms=%d", 10), getms())
@@ -146,6 +197,7 @@ pub main() | b1, b2
 
       tk_tm.start()
 
+    ' Update battery data
     if bt_tm.millis() >= sett.BATT_SPEED
       batt_1_voltage, batt_2_voltage := batt.get_voltages()
       batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
@@ -160,6 +212,10 @@ pub main() | b1, b2
       debug_data2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
       bt_tm.start()
+
+    if serial_queue_has_data()
+      get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
+
 
 
 pub sensor_loop() | left, right, internal, owx_status
@@ -190,6 +246,179 @@ pub sensor_loop() | left, right, internal, owx_status
       ds_tm.start()
 
 
+'' ============================== ''
+'' Serial Queue by Stephen Moraco ''
+'' Debug Features Removed         ''
+'' Licence: MIT License           ''
+'' ============================== ''
+
+pub serial_queue_has_data() : bPresentStatus
+'' Return T/F where T means a control value change has been received and needs to be handled
+    bPresentStatus := (nQStrCount > 0) ? TRUE : FALSE
+
+
+pub serial_queue_count() : nCount
+'' Return count of strings received
+    nCount := nQStrCount
+
+
+pub get_serial_queue_data(pUserDest, lenDest, bShouldWait) : pStr | bStringArrived, pWrappedStr, nLen
+'' Return {pStr} or 0 if none
+''  if {bShouldWait} is TRUE wait until string arrives before returning
+    pStr := 0
+    if bShouldWait == TRUE
+        bStringArrived := TRUE
+        repeat until serial_queue_has_data() == TRUE
+    else
+        bStringArrived := serial_queue_has_data()
+
+    if bStringArrived == TRUE
+        pStr := pUserDest
+        pWrappedStr := serial_dequeue_str()
+        bytefill(pUserDest, 0, lenDest)
+        copy_wrapped_str(pUserDest, pWrappedStr, lenDest)
+        nLen := strsize(pUserDest)
+        free_wrapped_str(pWrappedStr, nLen)
+
+
+pub flush_serial_queue()
+'' Reset all Rx Queue control and data (emptying it!)
+    bytefill(@serialRxBffr, 0, sett.RX_BUFF_BYTES)
+    longfill(@rxStrPtrSet, 0, sett.RX_BUFF_LONGS)
+    pRxByteHead := pRxByteStart
+
+    bInString := FALSE
+
+    nQStrHeadIdx := 0
+    nQStrTailIdx := 0
+
+    nRxByteCount := 0
+    nQStrCount := 0
+
+    pRsltStrStart := 0
+
+
+pub reset_serial_queue_status()
+'' Reset all task failure indicators
+    bQueOverrun := FALSE
+    bStrQueOverrun := FALSE
+
+
+pri serial_queue_loop(pRxBffr, lenRxBffr)
+' our serial receive to queue loop
+    ' preserve incoming values
+    pRxByteStart := pRxBffr
+    nRxByteMax := lenRxBffr
+
+    ' NOTE parameters are for DEBUG use only
+    flush_serial_queue()
+
+
+    ' read serial input forever placing chars in RX Circ Queue
+    repeat
+        nTaskChr := sys.rxtime(1000)
+        if (nTaskChr <> -1)
+            serial_enqueue_char(nTaskChr)
+
+
+pri serial_enqueue_char(nChr) : bFailedStatus
+' place byte into rx queue, if EOL then place term instead and engueue string ptr!
+    bFailedStatus := FALSE
+    if (nRxByteCount < nRxByteMax)
+        if bInString == FALSE
+            bInString := TRUE
+            pNewStrStart := pRxByteHead
+        nRxByteCount++
+        if (nChr <> $0a)
+            ' if NOT LF then save it
+            byte [pRxByteHead++] := nChr
+        else
+            ' have LF terminate line
+            byte [pRxByteHead++] := $00 ' place term instead of EOL
+            if bInString == TRUE
+                bInString := FALSE
+                serial_enqueue_str(pNewStrStart)
+        ' wrap ptr if needed...
+        if pRxByteHead > @BYTE [@serialRxBffr][sett.RX_BUFF_BYTES - 1]
+            pRxByteHead := @serialRxBffr
+    else
+        bQueOverrun := TRUE ' signal that we lost incoming data!!!
+        sys.str(string("serial.error=BUFF_FULL"))
+        bFailedStatus := TRUE
+
+
+pri serial_enqueue_str(pStr) | strIdx
+' report string arrival to listener (place string pointer in queue)
+    if nQStrCount < sett.RX_BUFF_LONGS
+        strIdx := nQStrHeadIdx  ' save for debug
+        LONG [@rxStrPtrSet][nQStrHeadIdx++] := pStr
+        ' if head goes off end-of-set then wrap
+        if nQStrHeadIdx > sett.RX_BUFF_LONGS - 1
+            nQStrHeadIdx := 0
+        ' mark arrival of new in queue
+        nQStrCount++
+    else
+        bStrQueOverrun := TRUE ' signal that we lost incoming data!!!
+
+
+pri serial_dequeue_str() : pRmStr
+' remove string from queue, listener done with it
+    'dumpStrQ(string("B4 String Ptr Que"))
+    if nQStrCount > 0
+        pRmStr := LONG[@rxStrPtrSet][nQStrTailIdx++]
+        if nQStrTailIdx > sett.RX_BUFF_LONGS - 1
+            nQStrTailIdx := 0
+        nQStrCount--
+    'dumpStrQ(string("FTER String Ptr Que"))
+
+
+pri serial_dequeue_result_str() : pRsltStr
+' remove string from queue, listener done with it
+    'dumpStrQ(string("B4 String Ptr Que"))
+    pRsltStr := 0
+    if pRsltStrStart <> 0
+        pRsltStr := pRsltStrStart
+        pRsltStrStart := 0  ' mark as empty
+
+
+pri free_wrapped_str(pRmStr, nLen)
+    ' zero our string memory
+    zero_wrapped_str(pRmStr, nLen)
+
+
+pri zero_wrapped_str(pRmStr, nLen) | nIdx, pSrc
+' fill space occuppied by string with zero's
+'  NOTE handle buffer wrap!
+'    string can start near and and wrap to front!
+    pSrc := pRmStr
+    repeat nIdx from 0 to nLen - 1
+        ' if pointing beyond end, wrap to front!
+        if pSrc > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES-1]
+          pSrc -= sett.RX_BUFF_BYTES
+        BYTE[pSrc++] := 0
+    nRxByteCount -= nLen + 1
+
+
+pri copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
+' copy possible wrapped string {pSrcStr} to {pUserDest} (use min(strlen,lenDest) as bytes to move)
+'  NOTE handle buffer wrap!
+'    string can start near and and wrap to front!
+    pDest := pUserDest
+    pSrc:= pSrcStr
+    repeat nIdx from 0 to lenDest - 1
+        ' if pointing beyond end, wrap to front!
+        if pSrc > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES-1]
+          pSrc -= sett.RX_BUFF_BYTES
+        if BYTE[pSrc] == 0
+            quit    ' at string end, quit loop
+        BYTE[pDest++] := BYTE[pSrc++]
+    BYTE[pDest] := 0  ' place final terminator
+
+
+'' =================== ''
+'' End of Serial Queue ''
+'' =================== ''
+
 pub send_debugtool_data()
 
 '' Send DebugTool Init data
@@ -212,8 +441,8 @@ pub setup()
 '' Configure IO and objects for application
 
   ' Serial
-  term_cog := term.tstart(sett.BR_TERM)                                         ' start terminal io
-  sys_serial_cog := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
+  term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
+  sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
 
   ' Voltmeter
   batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)

@@ -18,7 +18,13 @@ con { Kevinbot v3 Constant Settings }
   BR_TERM       = 230400                                                        ' PC Terminal baud default=230400
   BR_SYSTEM     = 624000                                                        ' Kevinbot v3 baud default=624000
 
-  DEBUGTOOL     = true                                                          ' Enable Debug of Kevinbot Core with Kevinbot v3 DebugTool default=true
+  RX_BUFF_BYTES = 1024                                                          ' System rx buffer size (bytes) default=1024
+  RX_BUFF_LONGS = 24                                                            ' System rx buffer size (longs) default=24
+  RX_MAX_LINE   = 128                                                           ' System rx max line length default=128
+  RX_MAX_CMD    = 32                                                            ' System rx max command length default=32
+  RX_MAX_VAL    = 64                                                            ' System rx max value length default=64
+
+  DEBUGTOOL     = false                                                          ' Enable Debug of Kevinbot Core with Kevinbot v3 DebugTool default=true
 
   '' Timings
   STARTUP_DELAY = 2000                                                          ' Core startup delay default=0
