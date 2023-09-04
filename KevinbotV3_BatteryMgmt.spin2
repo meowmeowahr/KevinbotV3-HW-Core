@@ -1,7 +1,7 @@
 '' =================================================================================================
 ''
 ''   File....... KevinbotV3_BatteryMgmt.spin2
-''   Purpose.... Provide accurate readings for battery voltages. Supports 12v, 12+12v, 12+24v, 24v configs
+''   Purpose.... Provide accurate readings for battery voltages. Supports 12v, 12+12v, 12+24v, and 24v configs
 ''   Author..... Kevin Ahr
 ''               Copyright (c) 2023 Kevin Ahr
 ''   License.... MIT License
@@ -15,6 +15,8 @@
 con { config options }
 
   #1, M_OFF, M_V12, M_V24, M_V12_V12, M_V12_V24
+  #0, S_NORMAL, S_UNDER, S_OVER, S_STOPPED
+
 
 obj
 
@@ -23,39 +25,121 @@ obj
 
   util  : "ka_utils"                                                            ' Misc utility methods
 
+
+var
+
+  byte  mode
+  byte  running
+
+  word  hv_1
+  word  lv_1
+  word  hv_2
+  word  lv_2
+
+
 pub null()
 
 '' This is not a top level object
 
 
-pub start(b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2)
+pub start(config, b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2)
 
 '' Start battery Management System
+'' -- config..... BMS Operation mode
 '' -- b1_pin..... Voltmeter #1 (multiplied by 10)
 '' -- b2_pin..... Voltmeter #2 (multiplied by 10)
-'' -- hi_volt_1.. Over-Voltage for meter #1
-'' -- low_volt_1. Under-Voltage for meter #1
-'' -- hi_volt_2.. Over-Voltage for meter #2
-'' -- low_volt_2. Under-Voltage for meter #2
+'' -- hi_volt_1.. Over-Voltage for meter #1 (multiplied by 10)
+'' -- low_volt_1. Under-Voltage for meter #1 (multiplied by 10)
+'' -- hi_volt_2.. Over-Voltage for meter #2 (multiplied by 10)
+'' -- low_volt_2. Under-Voltage for meter #2 (multiplied by 10)
+
+  mode := config
+  hv_1, lv_1, hv_2, lv_2 := hi_volt_1, low_volt_1, hi_volt_2, low_volt_2
 
   volt1.start(b1_pin, 0, 1000)                                               ' configure analog input for voltage
   volt2.start(b2_pin, 0, 1000)                                               ' configure analog input for voltage
 
+  running := true
 
-pub get_voltages() : meter_1, meter_2 | level_1, level_2
 
-'' Get battery meter readings
+pub get_voltages() : voltage_1, voltage_2 | level_1, level_2
+
+'' Get battery voltages
+
+  ifnot running
+    return -1, -1
 
   level_1 := volt1.read()
   level_2 := volt2.read()
-  meter_1 := util.map(level_1, 0, 1000, 0, 358)
-  meter_2 := util.map(level_2, 0, 1000, 0, 358)
-  return meter_1, meter_2
+  case mode
+    M_OFF: voltage_1 := -1
+    other: voltage_1 := util.map(level_1, 0, 1000, 0, 358)
+  case mode
+    M_V12: voltage_2 := -1
+    M_V24: voltage_2 := -1
+    M_V12_V12: voltage_2 := util.map(level_2, 0, 1000, 0, 358)
+    M_V12_V24: voltage_2 := util.map(level_2, 0, 1000, 0, 358) - voltage_1
+    other: voltage_2 := -1
+
+  return voltage_1, voltage_2
+
+pub get_statuses() : status_1, status_2 | voltage_1, voltage_2
+
+'' Get battery statuses
+
+  voltage_1, voltage_2 := get_raw_voltages()
+
+  ifnot running
+    return S_STOPPED, S_STOPPED
+
+  case mode
+    M_OFF: return S_NORMAL, S_NORMAL
+    M_V12, M_V24:
+      if (voltage_1 > hv_1)
+        status_1 := S_OVER
+      elseif (voltage_1 < lv_1)
+        status_1 := S_UNDER
+      else
+        status_1 := S_NORMAL
+
+      status_2 := S_NORMAL
+    M_V12_V12, M_V12_V24:
+      if (voltage_1 > hv_1)
+        status_1 := S_OVER
+      elseif (voltage_1 < lv_1)
+        status_1 := S_UNDER
+      else
+        status_1 := S_NORMAL
+
+      if (voltage_2 > hv_2)
+        status_2 := S_OVER
+      elseif (voltage_2 < lv_2)
+        status_2 := S_UNDER
+      else
+        status_2 := S_NORMAL
+
+  return status_1, status_2
+
+
+pub get_raw_voltages() : voltage_1, voltage_2 | level_1, level_2
+
+'' Get meter voltages
+
+  ifnot running
+    return -1, -1
+
+  level_1 := volt1.read()
+  level_2 := volt2.read()
+  voltage_1 := util.map(level_1, 0, 1000, 0, 358)
+  voltage_2 := util.map(level_2, 0, 1000, 0, 358)
+
+  return voltage_1, voltage_2
 
 
 pub stop()
 
 '' Stop Battery Management System
 
+  running := false
   volt1.stop()
   volt2.stop()

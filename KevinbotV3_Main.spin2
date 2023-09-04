@@ -54,38 +54,34 @@ con
 
 dat
 
-  Banner      byte      "===============", 13
-              byte      "  Kevinbot v3  ", 13
-              byte      "===============", 13, 0
+  Version               byte    "v3.1.0", 0                                     ' Core version
 
 
 obj
 
 ' main                                                                          ' * master Spin cog
 
-  pins  : "KevinbotV3_Pinmap"                                                   ' Kevinbot v3 Board Pinouts
-  sett  : "KevinbotV3_Settings"                                                 ' Kevinbot v3 Static Settings
+  pins  : "KevinbotV3_Pinmap"                                                   '   Kevinbot v3 Board Pinouts
+  sett  : "KevinbotV3_Settings"                                                 '   Kevinbot v3 Static Settings
 
-  batt  : "KevinbotV3_BatteryMgmt"                                              ' Kevinbot v3 Voltmeters and Battery Management
+  batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
 
-  util  : "ka_utils"                                                            ' Misc utility methods
+  util  : "ka_utils"                                                            '   Misc utility methods
 
-  tk_tm : "jm_ez_timer"                                                         ' Core tick timer
+  tk_tm : "jm_ez_timer"                                                         '   Core tick timer
+  bt_tm : "jm_ez_timer"                                                         '   BMS update timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
-  ansi  : "jm_ansi"                                                             ' ANSI terminal control sequences
+  ansi  : "jm_ansi"                                                             '   ANSI terminal control sequences
 
 ' * uses cog when loaded
-
-
-dat { pre-initialized }
 
 
 var { globals }
 
   '' Cogs
-  byte update_cog
+  byte  update_cog
   long  update_stack[128]
 
   '' Tick
@@ -95,6 +91,14 @@ var { globals }
   '' Driver Init
   byte  term_cog
   byte  sys_serial_cog
+
+  '' Batteries
+  long  batt_1_voltage
+  long  batt_2_voltage
+  word  batt_meter_1_voltage
+  word  batt_meter_2_voltage
+  word  batt_1_status
+  word  batt_2_status
 
 
 pub main() | b1, b2
@@ -121,12 +125,30 @@ pub update_loop()
 
   '' Tick updates
   tk_tm.start()
+  bt_tm.start()
 
   repeat
     if tk_tm.millis() >= sett.TICK_SPEED
       sys.fstr1(string("core.uptime=%d", 10), getsec())
       sys.fstr1(string("core.uptime_ms=%d", 10), getms())
       tk_tm.start()
+
+    if bt_tm.millis() >= sett.BATT_SPEED
+      batt_1_voltage, batt_2_voltage := batt.get_voltages()
+      batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
+      batt_1_status, batt_2_status := batt.get_statuses()
+
+      sys.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
+      sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
+      sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+
+      if sett.DEBUGTOOL
+        term.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
+        term.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
+        term.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+
+      bt_tm.start()
+
 
 pub setup()
 
@@ -137,7 +159,7 @@ pub setup()
   sys_serial_cog := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
 
   ' Voltmeter
-  batt.start(pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)
+  batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)
 
 
 pub debug_data0(data)

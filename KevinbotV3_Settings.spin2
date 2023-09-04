@@ -1,8 +1,7 @@
 '' =================================================================================================
 ''
 ''   File....... KevinbotV3_Settings.spin2
-''   Purpose.... Kevinbot v3 Settings that can't be changed "on-the-fly"
-''               (https://github.com/meowmeowahr/KevinbotV3-KiCAD)
+''   Purpose.... Kevinbot v3 Settings that can't be changed during runtime
 ''   Author..... Kevin Ahr
 ''               Copyright (c) 2023 Kevin Ahr
 ''   License.... MIT License
@@ -15,6 +14,7 @@
 
 con { Kevinbot v3 Control Board }
 
+  '' Serial
   BR_TERM       = 230400                                                        ' PC Terminal baud default=230400
   BR_SYSTEM     = 624000                                                        ' Kevinbot v3 baud default=624000
 
@@ -24,6 +24,7 @@ con { Kevinbot v3 Control Board }
   STARTUP_DELAY = 2000                                                          ' Core startup delay default=0
 
   TICK_SPEED    = 1000                                                          ' Millisecond delay between every system tick default=1000
+  BATT_SPEED    = 1500                                                          ' Millisecond delay between every battery update default=1000
 
   '' Battery
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
@@ -32,10 +33,20 @@ con { Kevinbot v3 Control Board }
   B2_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #2 default=116
   B2_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=142
 
+  BMS_MODE      = batt.M_V12_V24                                                ' Expected voltages for voltmeters default=batt.M_V12_V24
+
 
 dat { Kevinbot v3 Constant Strings }
 
   SystemName    BYTE    "Kevinbot v3",0                                         ' Name of Robot default="Kevinbot v3"
+
+'' ============================= ''
+'' Do not change anything below! ''
+'' ============================= ''
+obj
+
+  batt  : "KevinbotV3_BatteryMgmt"                                              ' Kevinbot v3 Voltmeters and Battery Management
+
 
 pub null()
 
