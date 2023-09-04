@@ -56,8 +56,8 @@ pub start(config, b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2)
   mode := config
   hv_1, lv_1, hv_2, lv_2 := hi_volt_1, low_volt_1, hi_volt_2, low_volt_2
 
-  volt1.start(b1_pin, 0, 1000)                                               ' configure analog input for voltage
-  volt2.start(b2_pin, 0, 1000)                                               ' configure analog input for voltage
+  volt1.start(b1_pin, 0, 1000)                                                  ' configure analog input for voltage
+  volt2.start(b2_pin, 0, 1000)                                                  ' configure analog input for voltage
 
   running := true
 

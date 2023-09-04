@@ -1,0 +1,87 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_Thermometers.spin2
+''   Purpose.... Provide readings for Kevinbot's DS18b20 Thermometers
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started.... 04 SEP 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { error states }
+
+  BUS_SHORT  = tsns.BUS_SHORT
+  BAD_RESET  = tsns.BAD_RESET
+  GOOD_RESET = tsns.GOOD_RESET
+  NO_DEVICE  = tsns.NO_DEVICE
+
+
+con { pullup resistor options }
+
+  PU_NONE = tsns.PU_NONE
+  PU_1K5  = tsns.PU_1K5
+  PU_3K3  = tsns.PU_3K3
+  PU_15K  = tsns.PU_15K
+
+
+obj
+
+  util  : "ka_utils"                                                            '   Misc utility methods
+
+  tsns    : "jm_ds18b20"                                                        '   1-Wire temperature sensor
+
+
+var
+
+  byte  running
+
+  long ds1_temp
+  long ds2_temp
+  long ds3_temp
+
+  long sn_left_addr
+  long sn_right_addr
+  long sn_internal_addr
+
+
+pub null()
+
+'' This is not a top level object
+
+
+pub start(sn_left, sn_right, sn_internal, pin, pullup)
+
+'' Start thermometers
+'' -- sn_left.... Serial number of left motor sensor
+'' -- sn_right... Serial number of right motor sensor
+'' -- sn_internal Serial number of internal sensor
+'' -- pin........ One-wire bus pin
+'' -- pullup..... Pullup resistor to use
+
+  tsns.start(pin, pullup)
+
+  sn_left_addr := sn_left
+  sn_right_addr := sn_right
+  sn_internal_addr := sn_internal
+
+  running := true
+
+
+pub read_temps(): left, right, internal
+
+'' Read left motor, right motor, and internal temperatures
+
+  left  := tsns.read_tca(sn_left_addr)                                          ' read from specific address
+  right := tsns.read_tca(sn_right_addr)                                         ' read from specific address
+  internal := tsns.read_tca(sn_internal_addr)                                   ' read from specific address
+  return left, right, internal
+
+pub stop()
+
+'' Stop thermometers
+
+  running := false

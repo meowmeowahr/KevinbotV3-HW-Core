@@ -1,0 +1,174 @@
+'' =================================================================================================
+''
+''   File....... jm_ds18b20.spin2
+''   Purpose....
+''   Author..... Jon "JonnyMac" McPhalen
+''               Copyright (c) 2019-2021 Jon McPhalen
+''               -- see below for terms of use
+''   E-mail..... jon.mcphalen@gmail.com
+''   Started....
+''   Updated.... 13 JAN 2021
+''
+'' =================================================================================================
+
+
+con { fixed io pins }
+
+  RX1     = 63  { I }                                           ' programming / debug
+  TX1     = 62  { O }
+
+  SF_CS   = 61  { O }                                           ' serial flash
+  SF_SCK  = 60  { O }
+  SF_SDO  = 59  { O }
+  SF_SDI  = 58  { I }
+
+
+con
+
+  PU_NONE = ow.PU_NONE                                          ' pull-up options
+  PU_1K5  = ow.PU_1K5
+  PU_3K3  = ow.PU_3K3
+  PU_15K  = ow.PU_15K
+
+
+con
+
+  BUS_SHORT  = ow.BUS_SHORT
+  BAD_RESET  = ow.BAD_RESET
+  GOOD_RESET = ow.GOOD_RESET
+  NO_DEVICE  = ow.NO_DEVICE
+
+
+con
+
+  RD_ROM     = $33                                              ' 1W ROM commands
+  MATCH_ROM  = $55
+  SKIP_ROM   = $CC
+  ALARM_SRCH = $EC
+
+  CVRT_TEMP  = $44                                              ' DS18xxx commands
+  WR_SPAD    = $4E
+  RD_SPAD    = $BE
+  COPY_SPAD  = $48
+  RD_EE      = $B8
+  RD_POWER   = $B4
+
+
+obj
+
+  ow : "jm_1-wire"                                              ' 1-Wire driver
+
+
+pub null()
+
+'' This is not a top-level object
+
+
+pub start(pin, pullup) : result
+
+'' Start 1-Wire connection on pin
+'' -- pullup is option if no external pull-up is connected
+
+  return ow.start(pin, pullup)
+
+
+pub reset() : result
+
+'' Resets 1-Wire bus; returns bus status
+''
+''   %00 = bus short
+''   %01 = bad response; possible interference on bus
+''   %10 = good bus & presence detection
+''   %11 = no device
+
+  return ow.reset()
+
+
+pub rd_bit() : result
+
+'' Read one bit from 1-Wire bus
+'' -- use to monitor busy status
+
+  return ow.rd_bit()
+
+
+pub read_sn(p_sn)
+
+'' Reads serial number from 1W device
+'' -- stores in array at p_sn
+'' -- only connect one device at a time for this method
+
+  ow.reset()
+  ow.write(RD_ROM)
+  repeat 8
+    byte[p_sn++] := ow.read()
+
+
+pub read_tc() : tmpC
+
+'' Reads temperature from DS18b20
+'' -- skips id, so only one device can be connected
+'' -- returns degrees C in 0.0001 degree units
+
+  ow.reset()
+  ow.write(SKIP_ROM)                                            ' no serial number needed
+  ow.write(CVRT_TEMP)                                           ' start temp conversion
+  repeat                                                        ' let conversion finish
+    tmpC := ow.rd_bit()
+  until (tmpC == 1)
+  ow.reset()
+  ow.write(SKIP_ROM)
+  ow.write(RD_SPAD)                                             ' read scratchpad
+  tmpC.byte[0] := ow.read()                                     ' lsb of temp
+  tmpC.byte[1] := ow.read()                                     ' msb of temp
+  tmpC := (tmpC signx= 15) * 625                                ' extend sign, 0.0001° units
+
+
+pub read_tca(p_sn) : tmpC | idx
+
+'' Reads temperature from DS18b20 at specific address
+'' -- returns degrees C in 0.0001 degree units
+'' -- p_sn is pointer to byte array with serial #
+
+  ow.reset()
+  ow.write(MATCH_ROM)                                           ' use serial #
+  repeat idx from 0 to 7                                        ' send serial #
+    ow.write(byte[p_sn][idx])
+  ow.write(CVRT_TEMP)                                           ' start conversion
+  repeat                                                        ' let conversion finish
+    tmpC := ow.rd_bit()
+  until (tmpC == 1)
+  ow.reset()
+  ow.write(MATCH_ROM)
+  repeat idx from 0 to 7
+    ow.write(byte[p_sn][idx])
+  ow.write(RD_SPAD)                                             ' read scratchpad
+  tmpC.byte[0] := ow.read()                                     ' lsb of temp
+  tmpC.byte[1] := ow.read()                                     ' msb of temp
+  tmpC := (tmpC signx= 15) * 625                                ' extend sign, 0.0001° units
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}

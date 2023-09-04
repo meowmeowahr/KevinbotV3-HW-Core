@@ -51,12 +51,12 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF
 
 
 dat
 
-  Version               byte    "v3.1.0", 0                                     ' Core version
+  Version               byte    "v3.0.0-beta", 0                                ' Core version
 
 
 obj
@@ -67,11 +67,13 @@ obj
   sett  : "KevinbotV3_Settings"                                                 '   Kevinbot v3 Static Settings
 
   batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
+  temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
 
   util  : "ka_utils"                                                            '   Misc utility methods
 
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
+  ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
@@ -89,6 +91,9 @@ var { globals }
   byte  update_cog
   long  update_stack[128]
 
+  byte sensor_cog
+  long sensor_stack[128]
+
   '' Tick
   long  last_core_tick
   long  last_system_tick
@@ -102,8 +107,13 @@ var { globals }
   long  batt_2_voltage
   word  batt_meter_1_voltage
   word  batt_meter_2_voltage
-  word  batt_1_status
-  word  batt_2_status
+  byte  batt_1_status
+  byte  batt_2_status
+
+  '' Temperatures
+  long left_motor_temp
+  long right_motor_temp
+  long internal_temp
 
 
 pub main() | b1, b2
@@ -116,20 +126,11 @@ pub main() | b1, b2
 
   ' Cogs
   update_cog := cogspin(NEWCOG, update_loop, @update_stack)
+  sensor_cog := cogspin(NEWCOG, sensor_loop, @sensor_stack)
 
   ' Init Data for DebugTool
   if sett.DEBUGTOOL
-
-    if core_status == S_OK
-      debug_data1(string("core.ready=%s", 10), string("true"))
-    else
-      debug_data1(string("core.ready=%s", 10), string("false"))
-
-    debug_data1(string("core.error=%d", 10), core_status)
-    debug_data1(string("core.name=%s", 10), sett.system_name())
-    debug_data1(string("core.version=%s", 10), @Version)
-    debug_data1(string("sett.br_system=%d", 10), sett.BR_SYSTEM)
-    debug_data1(string("sett.br_term=%d", 10), sett.BR_TERM)
+    send_debugtool_data()
 
   repeat
     waitct(0)
@@ -137,7 +138,8 @@ pub main() | b1, b2
 
 pub update_loop()
 
-  '' Tick updates
+'' Tick and battery updates
+
   tk_tm.start()
   bt_tm.start()
 
@@ -156,12 +158,42 @@ pub update_loop()
       sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
       sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
-      if sett.DEBUGTOOL
-        term.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
-        term.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
-        term.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+      debug_data2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
+      debug_data2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
+      debug_data2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
       bt_tm.start()
+
+
+pub sensor_loop() | left, right, internal
+
+'' Sensor update cog
+
+  ' DS18b20
+  temp.start(sett.get_left_motor_sn(), sett.get_right_motor_sn(), sett.get_internal_temp_sn(), pins.ONE_WIRE, temp.PU_1K5)
+
+  repeat
+    waitms(1000)
+    left, right, internal := temp.read_temps()
+    debug_data3(string("sensors.temps=%5.2f,%5.2f,%5.2f", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+    sys.fstr3(string("sensors.temps=%5.2f,%5.2f,%5.2f", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+
+
+pub send_debugtool_data()
+
+'' Send DebugTool Init data
+
+  if core_status == S_OK
+    debug_data1(string("core.ready=%s", 10), string("true"))
+  else
+    debug_data1(string("core.ready=%s", 10), string("false"))
+
+    debug_data1(string("core.error=%d", 10), core_status)
+    debug_data1(string("core.name=%s", 10), sett.system_name())
+    debug_data1(string("core.version=%s", 10), @Version)
+    debug_data1(string("sett.br_system=%d", 10), sett.BR_SYSTEM)
+    debug_data1(string("sett.br_term=%d", 10), sett.BR_TERM)
+    debug_data1(string("sett.tick_speed=%d", 10), sett.TICK_SPEED)
 
 
 pub setup()
@@ -176,20 +208,36 @@ pub setup()
   batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)
 
 
-pub debug_data0(data)
+pub debug_data0(p_str)
 
 '' Send data to PC Terminal / DebugTool
 
   if (sett.DEBUGTOOL)
-    term.fstr0(data)
+    term.fstr0(p_str)
 
 
-pub debug_data1(data, arg1)
+pub debug_data1(p_str, arg1)
 
 '' Send data to PC Terminal / DebugTool
 
   if (sett.DEBUGTOOL)
-    term.fstr1(data, arg1)
+    term.fstr1(p_str, arg1)
+
+
+pub debug_data2(p_str, arg1, arg2)
+
+'' Send data to PC Terminal / DebugTool
+
+  if (sett.DEBUGTOOL)
+    term.fstr1(p_str, arg1, arg2)
+
+
+pub debug_data3(p_str, arg1, arg2, arg3)
+
+'' Send data to PC Terminal / DebugTool
+
+  if (sett.DEBUGTOOL)
+    term.fstr1(p_str, arg1, arg2, arg3)
 
 
 pub wait_for_terminal(clear)

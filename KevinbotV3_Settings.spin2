@@ -12,7 +12,7 @@
 '' =================================================================================================
 
 
-con { Kevinbot v3 Control Board }
+con { Kevinbot v3 Constant Settings }
 
   '' Serial
   BR_TERM       = 230400                                                        ' PC Terminal baud default=230400
@@ -24,7 +24,8 @@ con { Kevinbot v3 Control Board }
   STARTUP_DELAY = 2000                                                          ' Core startup delay default=0
 
   TICK_SPEED    = 1000                                                          ' Millisecond delay between every system tick default=1000
-  BATT_SPEED    = 1500                                                          ' Millisecond delay between every battery update default=1000
+  BATT_SPEED    = 1500                                                          ' Millisecond delay between every battery update default=1500
+  TEMP_SPEED    = 3000                                                          ' Millisecond delay between every thermometer update default=3000
 
   '' Battery
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
@@ -36,9 +37,15 @@ con { Kevinbot v3 Control Board }
   BMS_MODE      = batt.M_V12_V24                                                ' Expected voltages for voltmeters default=batt.M_V12_V24
 
 
-dat { Kevinbot v3 Constant Strings }
+dat { Kevinbot v3 Constant Settings }
 
-  SystemName    BYTE    "Kevinbot v3",0                                         ' Name of Robot default="Kevinbot v3"
+' DS18b20 serial numbers
+
+  LEFT_MOTOR_SN         byte    $28, $98, $C0, $23, $0C, $32, $20, $F0          ' Left motor thermometer serial number default=$28, $98, $C0, $23, $0C, $32, $20, $F0
+  RT_MOTOR_SN           byte    $28, $BF, $08, $42, $0C, $32, $20, $C0          ' Right motor thermometer serial number default=$28, $BF, $08, $42, $0C, $32, $20, $C0
+  INTERNAL_TEMP_SN      byte    $28, $2E, $5C, $47, $0C, $32, $20, $4D          ' Internal thermometer serial number default=$28, $2E, $5C, $47, $0C, $32, $20, $4D
+
+  SystemName            byte    "Kevinbot v3",0                                 ' Name of Robot default="Kevinbot v3"
 
 '' ============================= ''
 '' Do not change anything below! ''
@@ -57,3 +64,21 @@ pub system_name() : setting
 
 '' Return Settings
   return @SystemName
+
+
+pub get_left_motor_sn(): setting
+
+'' Return Settings
+  return @LEFT_MOTOR_SN
+
+
+pub get_right_motor_sn(): setting
+
+'' Return Settings
+  return @RT_MOTOR_SN
+
+
+pub get_internal_temp_sn(): setting
+
+'' Return Settings
+  return @INTERNAL_TEMP_SN
