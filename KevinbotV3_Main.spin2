@@ -51,6 +51,8 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
+  #0, S_OK, S_UNKNOWN
+
 
 dat
 
@@ -80,6 +82,9 @@ obj
 
 var { globals }
 
+  '' Error State
+  byte core_status
+
   '' Cogs
   byte  update_cog
   long  update_stack[128]
@@ -103,6 +108,8 @@ var { globals }
 
 pub main() | b1, b2
 
+  core_status := S_OK
+
   waitms(2000)
 
   setup()
@@ -112,8 +119,15 @@ pub main() | b1, b2
 
   ' Init Data for DebugTool
   if sett.DEBUGTOOL
+
+    if core_status == S_OK
+      debug_data1(string("core.ready=%s", 10), string("true"))
+    else
+      debug_data1(string("core.ready=%s", 10), string("false"))
+
+    debug_data1(string("core.error=%d", 10), core_status)
     debug_data1(string("core.name=%s", 10), sett.system_name())
-    debug_data1(string("core.ready=%s", 10), string("true"))
+    debug_data1(string("core.version=%s", 10), @Version)
     debug_data1(string("sett.br_system=%d", 10), sett.BR_SYSTEM)
     debug_data1(string("sett.br_term=%d", 10), sett.BR_TERM)
 
