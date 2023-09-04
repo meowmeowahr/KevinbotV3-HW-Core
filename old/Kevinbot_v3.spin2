@@ -154,7 +154,7 @@ con { settings }
 
   STARTUP_BEEP      = YES                                       ' beep on startup
 
-  ALIVE_INTERVAL    = 2000
+  ALIVE_INTERVAL    = 1000
 
   ''''''''''''''''''''''''''''''
 

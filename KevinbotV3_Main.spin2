@@ -1,0 +1,179 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_Main.spin2
+''   Purpose....
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started.... 03 SEP 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { timing }
+
+  CLK_FREQ = 200_000_000                                                        ' system freq as a constant
+  MS_001   = CLK_FREQ / 1_000                                                   ' ticks in 1ms
+  US_001   = CLK_FREQ / 1_000_000                                               ' ticks in 1us
+
+  _clkfreq = CLK_FREQ                                                           ' set system clock
+
+
+con { terminal }
+
+  #0, T_PST, T_ANSI                                                             ' terminal types
+
+  T_TYPE = T_ANSI
+
+
+con { fixed io pins }
+
+  PGM_RX1  = 63  { I }                                                          ' programming / debug
+  PGM_TX1  = 62  { O }
+
+  SF_CS    = 61  { O }                                                          ' serial flash
+  SF_SCK   = 60  { O }
+  SF_SDO   = 59  { O }
+  SF_SDI   = 58  { I }
+
+  SD_SCK   = 61  { O }                                                          ' sd card
+  SD_CS    = 60  { O }
+  SD_SDO   = 59  { O }
+  SD_SDI   = 58  { I }
+
+  LED2     = 57  { O }                                                          ' Eval and Edge LEDs
+  LED1     = 56  { O }
+
+con
+
+  #true,  ON, OFF
+  #false, NO, YES
+
+
+dat
+
+  Banner      byte      "===============", 13
+              byte      "  Kevinbot v3  ", 13
+              byte      "===============", 13, 0
+
+
+obj
+
+' main                                                                          ' * master Spin cog
+
+  pins  : "KevinbotV3_Pinmap"                                                   ' Kevinbot v3 Board Pinouts
+  sett  : "KevinbotV3_Settings"                                                 ' Kevinbot v3 Static Settings
+
+  batt  : "KevinbotV3_BatteryMgmt"                                              ' Kevinbot v3 Voltmeters and Battery Management
+
+  util  : "ka_utils"                                                            ' Misc utility methods
+
+  tk_tm : "jm_ez_timer"                                                         ' Core tick timer
+
+  term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
+  sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
+  ansi  : "jm_ansi"                                                             ' ANSI terminal control sequences
+
+' * uses cog when loaded
+
+
+dat { pre-initialized }
+
+
+var { globals }
+
+  '' Cogs
+  byte update_cog
+  long  update_stack[128]
+
+  '' Tick
+  long  last_core_tick
+  long  last_system_tick
+
+  '' Driver Init
+  byte  term_cog
+  byte  sys_serial_cog
+
+
+pub main() | b1, b2
+
+  waitms(2000)
+
+  setup()
+
+  ' Cogs
+  update_cog := cogspin(NEWCOG, update_loop, @update_stack)
+
+  ' Init Data for DebugTool
+  if sett.DEBUGTOOL
+    debug_data1(string("core.name=%s", 10), sett.system_name())
+    debug_data1(string("core.ready=%s", 10), string("true"))
+    debug_data1(string("sett.br_system=%d", 10), sett.BR_SYSTEM)
+    debug_data1(string("sett.br_term=%d", 10), sett.BR_TERM)
+
+  repeat
+    waitct(0)
+
+
+pub update_loop()
+
+  '' Tick updates
+  tk_tm.start()
+
+  repeat
+    if tk_tm.millis() >= sett.TICK_SPEED
+      sys.fstr1(string("core.uptime=%d", 10), getsec())
+      sys.fstr1(string("core.uptime_ms=%d", 10), getms())
+      tk_tm.start()
+
+pub setup()
+
+'' Configure IO and objects for application
+
+  ' Serial
+  term_cog := term.tstart(sett.BR_TERM)                                         ' start terminal io
+  sys_serial_cog := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
+
+  ' Voltmeter
+  batt.start(pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)
+
+
+pub debug_data0(data)
+
+'' Send data to PC Terminal / DebugTool
+
+  if (sett.DEBUGTOOL)
+    term.fstr0(data)
+
+
+pub debug_data1(data, arg1)
+
+'' Send data to PC Terminal / DebugTool
+
+  if (sett.DEBUGTOOL)
+    term.fstr1(data, arg1)
+
+
+pub wait_for_terminal(clear)
+
+'' Wait for terminal to be open and key pressed
+
+  term.rxflush()
+  term.rx()
+  if (clear)
+    clear_screen()
+
+
+pub clear_screen()
+
+'' Move cursor home (upper left) and clear the terminal
+
+  if (T_TYPE == T_PST)
+    term.tx(term.HOME)
+    term.tx(term.CLS)
+  else
+    term.str(ansi.hide_cursor())
+    term.str(ansi.home())
+    term.str(ansi.cls())

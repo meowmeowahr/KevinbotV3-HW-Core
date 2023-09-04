@@ -1,0 +1,61 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_BatteryMgmt.spin2
+''   Purpose.... Provide accurate readings for battery voltages. Supports 12v, 12+12v, 12+24v, 24v configs
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started.... 03 SEP 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { config options }
+
+  #1, M_OFF, M_V12, M_V24, M_V12_V12, M_V12_V24
+
+obj
+
+  volt1   : "jm_ez_analog"                                                      ' smart pin analog input for voltage meter
+  volt2   : "jm_ez_analog"                                                      ' smart pin analog input for voltage meter
+
+  util  : "ka_utils"                                                            ' Misc utility methods
+
+pub null()
+
+'' This is not a top level object
+
+
+pub start(b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2)
+
+'' Start battery Management System
+'' -- b1_pin..... Voltmeter #1 (multiplied by 10)
+'' -- b2_pin..... Voltmeter #2 (multiplied by 10)
+'' -- hi_volt_1.. Over-Voltage for meter #1
+'' -- low_volt_1. Under-Voltage for meter #1
+'' -- hi_volt_2.. Over-Voltage for meter #2
+'' -- low_volt_2. Under-Voltage for meter #2
+
+  volt1.start(b1_pin, 0, 1000)                                               ' configure analog input for voltage
+  volt2.start(b2_pin, 0, 1000)                                               ' configure analog input for voltage
+
+
+pub get_voltages() : meter_1, meter_2 | level_1, level_2
+
+'' Get battery meter readings
+
+  level_1 := volt1.read()
+  level_2 := volt2.read()
+  meter_1 := util.map(level_1, 0, 1000, 0, 358)
+  meter_2 := util.map(level_2, 0, 1000, 0, 358)
+  return meter_1, meter_2
+
+
+pub stop()
+
+'' Stop Battery Management System
+
+  volt1.stop()
+  volt2.stop()

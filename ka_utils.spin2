@@ -1,0 +1,29 @@
+'' =================================================================================================
+''
+''   File....... ka_utils.spin2
+''   Purpose.... Miscellaneous utility methods
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started.... 03 SEP 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+pub null()
+
+'' This is not a top level object
+
+
+pub map(value, inmin, inmax, outmin, outmax) : result
+
+'' Maps value in range inmin..inmax to new value in range outmin..outmax
+
+  if (value <= inmin)
+    return outmin
+  elseif (value >= inmax)
+    return outmax
+  else
+    return (value - inmin) * (outmax - outmin) / (inmax - inmin) + outmin

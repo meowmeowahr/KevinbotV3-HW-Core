@@ -1,0 +1,48 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_Settings.spin2
+''   Purpose.... Kevinbot v3 Settings that can't be changed "on-the-fly"
+''               (https://github.com/meowmeowahr/KevinbotV3-KiCAD)
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started.... 03 SEP 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { Kevinbot v3 Control Board }
+
+  BR_TERM       = 230400                                                        ' PC Terminal baud default=230400
+  BR_SYSTEM     = 624000                                                        ' Kevinbot v3 baud default=624000
+
+  DEBUGTOOL     = true                                                          ' Enable Debug of Kevinbot Core with Kevinbot v3 DebugTool default=true
+
+  '' Timings
+  STARTUP_DELAY = 2000                                                          ' Core startup delay default=0
+
+  TICK_SPEED    = 1000                                                          ' Millisecond delay between every system tick default=1000
+
+  '' Battery
+  B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
+  B1_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #1 default=142
+
+  B2_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #2 default=116
+  B2_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=142
+
+
+dat { Kevinbot v3 Constant Strings }
+
+  SystemName    BYTE    "Kevinbot v3",0                                         ' Name of Robot default="Kevinbot v3"
+
+pub null()
+
+'' This is not a top-level object
+
+
+pub system_name() : setting
+
+'' Return Settings
+  return @SystemName
