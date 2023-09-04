@@ -53,7 +53,7 @@ pub null()
 '' This is not a top level object
 
 
-pub start(sn_left, sn_right, sn_internal, pin, pullup)
+pub start(sn_left, sn_right, sn_internal, pin, pullup) : output
 
 '' Start thermometers
 '' -- sn_left.... Serial number of left motor sensor
@@ -62,13 +62,15 @@ pub start(sn_left, sn_right, sn_internal, pin, pullup)
 '' -- pin........ One-wire bus pin
 '' -- pullup..... Pullup resistor to use
 
-  tsns.start(pin, pullup)
+  output := tsns.start(pin, pullup)
 
   sn_left_addr := sn_left
   sn_right_addr := sn_right
   sn_internal_addr := sn_internal
 
   running := true
+
+  return output
 
 
 pub read_temps(): left, right, internal
