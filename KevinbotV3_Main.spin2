@@ -180,6 +180,9 @@ pub main() | b1, b2, index
 
   waitms(sett.STARTUP_DELAY)
 
+  if sett.WAIT_FOR_TERM
+    wait_for_terminal(false)
+
   setup()
 
   ' Cogs

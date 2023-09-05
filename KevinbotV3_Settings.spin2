@@ -24,7 +24,8 @@ con { Kevinbot v3 Constant Settings }
   RX_MAX_CMD    = 32                                                            ' System rx max command length default=32
   RX_MAX_VAL    = 64                                                            ' System rx max value length default=64
 
-  DEBUGTOOL     = false                                                          ' Enable Debug of Kevinbot Core with Kevinbot v3 DebugTool default=true
+  DEBUGTOOL     = true                                                          ' Enable Debug of Kevinbot Core with Kevinbot v3 DebugTool default=true
+  WAIT_FOR_TERM = false                                                         ' Require return key to be pressed on terminal before boot default=false
 
   '' Timings
   STARTUP_DELAY = 2000                                                          ' Core startup delay default=0
