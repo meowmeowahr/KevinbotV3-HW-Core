@@ -100,6 +100,17 @@ dat
 
 Version                 byte    "v3.0.0-beta", 0                                ' Core version
 
+' command table
+Commands
+                        byte    "core.pinh"             , 0                     ' Simple `IO
+                        byte    "core.pinl"             , 0
+                        byte    "core.pint"             , 0
+                        byte    "core.pinf"             , 0
+                        byte    0
+
+NumCmds                 byte    4
+
+
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
 rxCmdBuffer             byte    0[sett.RX_MAX_CMD]
 rxValueBuffer           byte    0[sett.RX_MAX_VAL]
@@ -116,6 +127,7 @@ obj
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
 
   util  : "ka_utils"                                                            '   Misc utility methods
+  str   : "string"                                                              '   String utilities
 
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
@@ -162,7 +174,7 @@ var { globals }
   long internal_temp
 
 
-pub main() | b1, b2
+pub main() | b1, b2, index
 
   core_status := S_OK
 
@@ -215,6 +227,14 @@ pub main() | b1, b2
 
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
+      util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
+      index := cmd_index(@rxCmdBuffer, @Commands, 4)                            ' get command index
+
+      case index
+        1: pinh(str.atoi(@rxValueBuffer))
+        2: pinl(str.atoi(@rxValueBuffer))
+        3: pint(str.atoi(@rxValueBuffer))
+        4: pinf(str.atoi(@rxValueBuffer))
 
 
 
@@ -245,6 +265,33 @@ pub sensor_loop() | left, right, internal, owx_status
       sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
 
+
+pub cmd_index(p_src, p_list, nc) : idx | byte buf[32], x, c
+
+'' Convert command string into value
+'' -- not case sensitive
+'' -- returns 1..n if found in command table
+'' -- returns 0 (false) if not found
+
+  bytemove(@buf, p_src, strsize(p_src)+1)                       ' copy string + terminator
+
+  x := 0
+  repeat
+    c := buf[x]
+    if (c == 0)                                                 ' end of string
+      quit
+    elseif ((c >= "A") && (c <= "Z"))                           ' if uppercase
+      buf[x] += 32                                              '  make lowercase
+    x++
+
+  repeat nc
+    if (strcomp(@buf, p_list))
+      return idx+1
+    else
+      idx += 1                                                  ' update index
+      p_list += strsize(p_list) + 1                             ' update list pointer
+
+  return 0
 
 '' ============================== ''
 '' Serial Queue by Stephen Moraco ''

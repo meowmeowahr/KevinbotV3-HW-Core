@@ -27,3 +27,25 @@ pub map(value, inmin, inmax, outmin, outmax) : result
     return outmax
   else
     return (value - inmin) * (outmax - outmin) / (inmax - inmin) + outmin
+
+
+pub split_str2(str, sep, p_d0, p_d1) | len, i, c, vn
+
+'' Split input string into two strings
+
+  bytefill(p_d0, 0, strsize(p_d0))                              ' reset data
+  bytefill(p_d1, 0, strsize(p_d1))
+
+  vn := 0
+  len := strsize(str)
+
+  repeat i from 0 to len                                        ' loop through chars
+    c := byte[str][i]
+    if c
+      if c == sep and vn < 1                                    ' seperator?
+        vn += 1
+      else
+        if vn == 0
+          byte[p_d0][strsize(p_d0)] := c                        ' add char to d0, d1, etc
+        else
+          byte[p_d1][strsize(p_d1)] := c
