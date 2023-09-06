@@ -102,19 +102,24 @@ Version                 byte    "v3.0.0-beta", 0                                
 
 ' command table
 Commands
-                        byte    "core.pinh"             , 0                     ' Simple `IO
+                        byte    "core.pinh"             , 0                     ' Simple IO
                         byte    "core.pinl"             , 0
                         byte    "core.pint"             , 0
                         byte    "core.pinf"             , 0
+                        byte    "core.tone"             , 0
                         byte    0
 
-NumCmds                 byte    4
+NumCmds                 byte    5
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
 rxCmdBuffer             byte    0[sett.RX_MAX_CMD]
 rxValueBuffer           byte    0[sett.RX_MAX_VAL]
 
+rxSubVal0Buffer         byte    0[sett.RX_MAX_SUBVAL]
+rxSubVal1Buffer         byte    0[sett.RX_MAX_SUBVAL]
+rxSubVal2Buffer         byte    0[sett.RX_MAX_SUBVAL]
+rxSubVal3Buffer         byte    0[sett.RX_MAX_SUBVAL]
 
 obj
 
@@ -128,6 +133,8 @@ obj
 
   util  : "ka_utils"                                                            '   Misc utility methods
   str   : "string"                                                              '   String utilities
+
+  beep  : "jm_pwm"                                                              '   error buzzer pwm
 
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
@@ -172,6 +179,10 @@ var { globals }
   long left_motor_temp
   long right_motor_temp
   long internal_temp
+
+  '' Buzzer
+  long buzzer_start_time
+  long buzzer_end_time
 
 
 pub main() | b1, b2, index
@@ -231,14 +242,21 @@ pub main() | b1, b2, index
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
-      index := cmd_index(@rxCmdBuffer, @Commands, 4)                            ' get command index
-
+      index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
       case index
-        1: pinh(str.atoi(@rxValueBuffer))
-        2: pinl(str.atoi(@rxValueBuffer))
-        3: pint(str.atoi(@rxValueBuffer))
-        4: pinf(str.atoi(@rxValueBuffer))
-
+        1: pinh(str.atoi(@rxValueBuffer))                                       ' core.pinh
+        2: pinl(str.atoi(@rxValueBuffer))                                       ' core.pinl
+        3: pint(str.atoi(@rxValueBuffer))                                       ' core.pint
+        4: pinf(str.atoi(@rxValueBuffer))                                       ' core.pinf
+        5:                                                                      ' core.tone
+          util.split_str3(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer, @rxSubVal2Buffer)
+          buzzer_start_time := getms()
+          buzzer_end_time := buzzer_start_time + str.atoi(@rxSubVal2Buffer)
+          tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+    else
+      '' Non-critical tasks
+      if buzzer_end_time < getms()
+        beep.write(0)
 
 
 pub sensor_loop() | left, right, internal, owx_status
@@ -295,6 +313,11 @@ pub cmd_index(p_src, p_list, nc) : idx | byte buf[32], x, c
       p_list += strsize(p_list) + 1                             ' update list pointer
 
   return 0
+
+
+pub tone(amp, freq)
+
+  beep.start(pins.BUZZER_PIN, amp, freq, beep.M_TRI)
 
 '' ============================== ''
 '' Serial Queue by Stephen Moraco ''
