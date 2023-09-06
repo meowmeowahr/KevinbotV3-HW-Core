@@ -51,7 +51,7 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL
 
   MAX_COMMAND_PARTS = 10                                                        ' count, raw string, cmdStr, eCmd, 6 paramValues
 
@@ -100,6 +100,9 @@ dat
 
 Version                 byte    "v3.0.0-beta", 0                                ' Core version
 
+DisplaySplashLine0      byte    "Kevinbot v3", 0
+DisplaySplashLine1      byte    "Core v3.0.0-b", 0
+
 ' command table
 Commands
                         byte    "core.pinh"             , 0                     ' Simple IO
@@ -135,6 +138,7 @@ obj
   str   : "string"                                                              '   String utilities
 
   beep  : "jm_pwm"                                                              '   error buzzer pwm
+  lcd   : "jm_lcd_pcf8574"                                                      '   status lcd
 
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
@@ -166,6 +170,7 @@ var { globals }
   '' Driver Init
   byte  term_cog_id
   byte  sys_serial_cog_id
+  byte  lcd_init_status
 
   '' Batteries
   long  batt_1_voltage
@@ -195,6 +200,15 @@ pub main() | b1, b2, index
     wait_for_terminal(false)
 
   setup()
+
+  if lcd_init_status == 0
+    ' lcd init failed
+    core_status := S_LCD_INIT_FAIL
+
+  lcd.crsr_home()
+  lcd.str(@DisplaySplashLine0)
+  lcd.line(1)
+  lcd.str(@DisplaySplashLine1)
 
   ' Cogs
   sensor_cog_id := cogspin(NEWCOG, sensor_loop, @sensor_stack)
@@ -519,6 +533,12 @@ pub setup()
 
   ' Voltmeter
   batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)
+
+  ' Display
+  if sett.ENABLE_LCD
+    lcd_init_status := lcd.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, lcd.PU_1K5)
+  else
+    lcd_init_status := 1
 
 
 pub debug_data0(p_str)

@@ -35,6 +35,12 @@ con { Kevinbot v3 Constant Settings }
   BATT_SPEED    = 1500                                                          ' Millisecond delay between every battery update default=1500
   TEMP_SPEED    = 3000                                                          ' Millisecond delay between every thermometer update default=3000
 
+  '' Display
+  ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true
+  LCD_ADDR  = %111                                                              ' LCD I2C address default=%111
+  LCD_WIDTH = 16                                                                ' LCD size default=16
+  LCD_LINES =  2                                                                ' default=2
+
   '' Battery
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
   B1_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #1 default=142
@@ -53,7 +59,7 @@ dat { Kevinbot v3 Constant Settings }
   RT_MOTOR_SN           byte    $28, $BF, $08, $42, $0C, $32, $20, $C0          ' Right motor thermometer serial number default=$28, $BF, $08, $42, $0C, $32, $20, $C0
   INTERNAL_TEMP_SN      byte    $28, $2E, $5C, $47, $0C, $32, $20, $4D          ' Internal thermometer serial number default=$28, $2E, $5C, $47, $0C, $32, $20, $4D
 
-  SystemName            byte    "Kevinbot v3",0                                 ' Name of Robot default="Kevinbot v3"
+  SystemName            byte    "Kevinbot v3", 0                                ' Name of Robot default="Kevinbot v3"
 
 '' ============================= ''
 '' Do not change anything below! ''

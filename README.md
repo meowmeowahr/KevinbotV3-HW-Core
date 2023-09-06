@@ -11,8 +11,11 @@ The code for the Kevinbot v3 Sub-Board
 | jm_ez_analog.spin2        | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_ez_timer.spin2         | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_fullduplexserial.spin2 | Jon "JonnyMac" McPhalen    | MIT     |
+| jm_i2c.spin2              | Jon "JonnyMac" McPhalen    | MIT     |
+| jm_lcd_pcf8574.spin2      | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_nstr.spin2             | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_pwm.spin2              | Jon "JonnyMac" McPhalen    | MIT     |
+| jm_pcf8574.spin2          | Jon "JonnyMac" McPhalen    | MIT     |
 | string.spin2              | Jesse Burt                 | MIT     |
 | termcodes.spin2h          | Jesse Burt                 | MIT     |
 | char.type.spin2h          | Jesse Burt                 | MIT     |
