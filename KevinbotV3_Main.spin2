@@ -206,6 +206,7 @@ pub main() | b1, b2, index
     core_status := S_LCD_INIT_FAIL
 
   disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
+  disp.display_status_icon(disp.CC_CHECK)
 
   ' Cogs
   sensor_cog_id := cogspin(NEWCOG, sensor_loop, @sensor_stack)
