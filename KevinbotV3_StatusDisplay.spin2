@@ -1,0 +1,51 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_StatusDisplay.spin2
+''   Purpose.... Provide a Status Display for Kevinbot v3 Core
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started....
+''   Updated.... 06 SEP 2023
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { pullups }
+
+  #0, PU_NONE, PU_1K5, PU_3K3, PU_15K                           ' pull-up options
+
+
+obj
+
+  lcd   : "jm_lcd_pcf8574"                                                      '   status lcd
+
+
+var
+
+  byte  running
+
+
+pub null()
+
+'' This is not a top level object
+
+
+pub start(address, scl, sda, khz, pullup) : output
+
+'' Start thermometers
+'' -- address.... i2c Address of PCF-based lcd display
+'' -- scl and sda define i2c bus
+'' -- khz is bus speed, typically 100
+'' -- pullup is high level drive configuration
+
+  output := lcd.start(address, scl, sda, khz, pullup)
+
+pub display_main_lines(p_line0, p_line1)
+
+  lcd.crsr_home()
+  lcd.str(p_line0)
+  lcd.line(1)
+  lcd.str(p_line1)

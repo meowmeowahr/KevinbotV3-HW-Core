@@ -138,7 +138,7 @@ obj
   str   : "string"                                                              '   String utilities
 
   beep  : "jm_pwm"                                                              '   error buzzer pwm
-  lcd   : "jm_lcd_pcf8574"                                                      '   status lcd
+  disp  : "KevinbotV3_StatusDisplay"                                            '   status lcd
 
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
@@ -205,10 +205,7 @@ pub main() | b1, b2, index
     ' lcd init failed
     core_status := S_LCD_INIT_FAIL
 
-  lcd.crsr_home()
-  lcd.str(@DisplaySplashLine0)
-  lcd.line(1)
-  lcd.str(@DisplaySplashLine1)
+  disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
 
   ' Cogs
   sensor_cog_id := cogspin(NEWCOG, sensor_loop, @sensor_stack)
@@ -536,7 +533,7 @@ pub setup()
 
   ' Display
   if sett.ENABLE_LCD
-    lcd_init_status := lcd.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, lcd.PU_1K5)
+    lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5)
   else
     lcd_init_status := 1
 
