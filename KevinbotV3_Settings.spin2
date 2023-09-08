@@ -37,7 +37,7 @@ con { Kevinbot v3 Constant Settings }
 
   SYSTEM_TICK   = TICK_SPEED                                                    ' Tick speed of System (use TICK_SPEED for "CORE" tick) default=TICK_SPEED
   SYS_TICK_TOL  = 100                                                           ' System Tick Tolerance default=100
-  USE_TICK_OOS  = false                                                         ' Enable Tick Out-of-sync error (turn off when debugging) default=true
+  USE_TICK_OOS  = true                                                          ' Enable Tick Out-of-sync error (turn off when debugging) default=true
 
   '' Display
   ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true

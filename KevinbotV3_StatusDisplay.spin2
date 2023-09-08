@@ -24,6 +24,7 @@ con { chars }
   CC_CHECK      = 0                                                             ' checkmark
   CC_REFRESH_1  = 1                                                             ' refresh 1
   CC_REFRESH_2  = 2                                                             ' refresh 2
+  CC_ERROR      = 3                                                             ' exclamation mark
 
 
 obj
@@ -36,6 +37,7 @@ dat
 CheckMark     byte      $00, $01, $03, $16, $1C, $08, $00, $00                  ' custom characters
 Refresh1      byte      $0D, $13, $07, $00, $00, $1C, $19, $16
 Refresh2      byte      $16, $19, $1C, $00, $00, $07, $13, $0D
+Error         byte      $0E, $0E, $0E, $0E, $04, $00, $0E, $0E
 
 
 var
@@ -61,6 +63,7 @@ pub start(address, scl, sda, khz, pullup) : output
   lcd.set_char(CC_CHECK, @CheckMark)
   lcd.set_char(CC_REFRESH_1, @Refresh1)
   lcd.set_char(CC_REFRESH_2, @Refresh2)
+  lcd.set_char(CC_ERROR, @Error)
 
 
 pub display_main_lines(p_line0, p_line1)

@@ -114,9 +114,10 @@ Commands
                         byte    "core.pinf"             , 0
                         byte    "core.tone"             , 0
                         byte    "system.tick"           , 0
+                        byte    "core.errors.clear"     , 0
                         byte    0
 
-NumCmds                 byte    6
+NumCmds                 byte    7
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -160,6 +161,7 @@ var { globals }
   '' States
   byte core_status
   byte link_status
+  byte has_been_linked
 
   '' Cogs
   byte sensor_cog_id
@@ -205,6 +207,7 @@ pub main() | b1, b2, index
   core_status := S_OK
   link_status := L_LINK_WAIT
   lcd_icon := I_LINK
+  has_been_linked := false
 
   setup()
 
@@ -280,6 +283,11 @@ pub main() | b1, b2, index
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
         6:                                                                      ' system.tick
           last_system_tick := getms()
+          has_been_linked := true
+        7:                                                                      ' core.errors.clear
+          core_status := S_OK
+          if has_been_linked
+            last_system_tick := getms()
 
     else
       '' Non-critical tasks
@@ -295,11 +303,13 @@ pub main() | b1, b2, index
       case core_status
         S_OK:
           lcd_icon := I_CHECK
+        other:
+          lcd_icon := I_ERROR
 
-      if last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL      ' system tick is not found
+      ' system tick is not found
+      if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL) and has_been_linked
         link_status := L_LINK_FAIL
         if sett.USE_TICK_OOS
-          lcd_icon := I_ERROR
           core_status := S_TICK_FAIL
         else
           lcd_icon := I_LINK
@@ -325,6 +335,11 @@ pub main() | b1, b2, index
             if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
               lcd_icon_update_time := getms()
               disp.display_status_icon(disp.CC_CHECK)
+
+          I_ERROR:
+            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+              lcd_icon_update_time := getms()
+              disp.display_status_icon(disp.CC_ERROR)
 
 
 
