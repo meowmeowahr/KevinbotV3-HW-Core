@@ -47,6 +47,8 @@ con { Kevinbot v3 Constant Settings }
 
   LCD_ICON_SPD  = 500                                                           ' Time to refresh lcd status icon default=500
 
+  LCD_SPLASH_MS = 3000                                                          ' TIme to show splash screen on LCD default=3000
+
   '' Battery
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
   B1_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #1 default=142
@@ -55,6 +57,9 @@ con { Kevinbot v3 Constant Settings }
   B2_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=142
 
   BMS_MODE      = batt.M_V12_V24                                                ' Expected voltages for voltmeters default=batt.M_V12_V24
+
+  '' Servos
+  ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true
 
 
 dat { Kevinbot v3 Constant Settings }

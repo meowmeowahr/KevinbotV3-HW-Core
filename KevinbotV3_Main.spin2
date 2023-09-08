@@ -197,6 +197,7 @@ var { globals }
   '' LCD
   long lcd_icon_update_time
   long lcd_icon
+  byte lcd_showing_splash
 
 
 pub main() | b1, b2, index
@@ -205,22 +206,23 @@ pub main() | b1, b2, index
   link_status := L_LINK_WAIT
   lcd_icon := I_LINK
 
+  setup()
+
+  if sett.ENABLE_LCD
+    lcd_showing_splash := true
+    disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
+
   waitms(sett.STARTUP_DELAY)
 
   if sett.WAIT_FOR_TERM
     wait_for_terminal(false)
 
-  setup()
-
   if lcd_init_status == 0
     ' lcd init failed
     core_status := S_LCD_INIT_FAIL
 
-  disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
-  disp.display_status_icon(disp.CC_REFRESH_1)
-
   ' Cogs
-  sensor_cog_id := cogspin(NEWCOG, sensor_loop, @sensor_stack)
+  sensor_cog_id := cogspin(newcog, sensor_loop, @sensor_stack)
   rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
 
   ' Init Data for DebugTool
@@ -286,6 +288,10 @@ pub main() | b1, b2, index
 
       '' LCD Updates / Tick
 
+      if (sett.ENABLE_LCD) and (lcd_showing_splash) and (getms() >= sett.LCD_SPLASH_MS)
+        disp.clear()
+        lcd_showing_splash := false
+
       case core_status
         S_OK:
           lcd_icon := I_CHECK
@@ -300,24 +306,25 @@ pub main() | b1, b2, index
       else
         link_status := L_LINKED
 
-      case lcd_icon
-        I_OFF:
-          if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-            lcd_icon_update_time := getms()
-            disp.display_status_icon(disp.CC_NONE)
+      if sett.ENABLE_LCD
+        case lcd_icon
+          I_OFF:
+            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+              lcd_icon_update_time := getms()
+              disp.display_status_icon(disp.CC_NONE)
 
-        I_LINK:
-          if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-            lcd_icon_update_time := getms()
-            if disp.get_lcd_icon() == disp.CC_REFRESH_1
-              disp.display_status_icon(disp.CC_REFRESH_2)
-            else
-              disp.display_status_icon(disp.CC_REFRESH_1)
+          I_LINK:
+            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+              lcd_icon_update_time := getms()
+              if disp.get_lcd_icon() == disp.CC_REFRESH_1
+                disp.display_status_icon(disp.CC_REFRESH_2)
+              else
+                disp.display_status_icon(disp.CC_REFRESH_1)
 
-        I_CHECK:
-          if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-            lcd_icon_update_time := getms()
-            disp.display_status_icon(disp.CC_CHECK)
+          I_CHECK:
+            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+              lcd_icon_update_time := getms()
+              disp.display_status_icon(disp.CC_CHECK)
 
 
 

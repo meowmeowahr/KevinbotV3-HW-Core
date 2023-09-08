@@ -86,3 +86,8 @@ lcd_icon := icon
 pub get_lcd_icon() : result
 
   return lcd_icon
+
+
+pub clear()
+
+  lcd.clear()
