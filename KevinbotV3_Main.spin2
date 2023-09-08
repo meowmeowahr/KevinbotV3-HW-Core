@@ -51,7 +51,10 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL
+
+  #0, L_LINKED, L_LINK_FAIL, L_LINK_WAIT
+  #0, I_OFF, I_LINK, I_CHECK, I_ERROR
 
   MAX_COMMAND_PARTS = 10                                                        ' count, raw string, cmdStr, eCmd, 6 paramValues
 
@@ -110,9 +113,10 @@ Commands
                         byte    "core.pint"             , 0
                         byte    "core.pinf"             , 0
                         byte    "core.tone"             , 0
+                        byte    "system.tick"           , 0
                         byte    0
 
-NumCmds                 byte    5
+NumCmds                 byte    6
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -153,8 +157,9 @@ obj
 
 var { globals }
 
-  '' Error State
+  '' States
   byte core_status
+  byte link_status
 
   '' Cogs
   byte sensor_cog_id
@@ -189,10 +194,16 @@ var { globals }
   long buzzer_start_time
   long buzzer_end_time
 
+  '' LCD
+  long lcd_icon_update_time
+  long lcd_icon
+
 
 pub main() | b1, b2, index
 
   core_status := S_OK
+  link_status := L_LINK_WAIT
+  lcd_icon := I_LINK
 
   waitms(sett.STARTUP_DELAY)
 
@@ -206,7 +217,7 @@ pub main() | b1, b2, index
     core_status := S_LCD_INIT_FAIL
 
   disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
-  disp.display_status_icon(disp.CC_CHECK)
+  disp.display_status_icon(disp.CC_REFRESH_1)
 
   ' Cogs
   sensor_cog_id := cogspin(NEWCOG, sensor_loop, @sensor_stack)
@@ -265,10 +276,49 @@ pub main() | b1, b2, index
           buzzer_start_time := getms()
           buzzer_end_time := buzzer_start_time + str.atoi(@rxSubVal2Buffer)
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+        6:                                                                      ' system.tick
+          last_system_tick := getms()
+
     else
       '' Non-critical tasks
       if buzzer_end_time < getms()
         beep.write(0)
+
+      '' LCD Updates / Tick
+
+      case core_status
+        S_OK:
+          lcd_icon := I_CHECK
+
+      if last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL      ' system tick is not found
+        link_status := L_LINK_FAIL
+        if sett.USE_TICK_OOS
+          lcd_icon := I_ERROR
+          core_status := S_TICK_FAIL
+        else
+          lcd_icon := I_LINK
+      else
+        link_status := L_LINKED
+
+      case lcd_icon
+        I_OFF:
+          if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+            lcd_icon_update_time := getms()
+            disp.display_status_icon(disp.CC_NONE)
+
+        I_LINK:
+          if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+            lcd_icon_update_time := getms()
+            if disp.get_lcd_icon() == disp.CC_REFRESH_1
+              disp.display_status_icon(disp.CC_REFRESH_2)
+            else
+              disp.display_status_icon(disp.CC_REFRESH_1)
+
+        I_CHECK:
+          if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+            lcd_icon_update_time := getms()
+            disp.display_status_icon(disp.CC_CHECK)
+
 
 
 pub sensor_loop() | left, right, internal, owx_status

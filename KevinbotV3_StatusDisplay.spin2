@@ -20,7 +20,10 @@ con { pullups }
 
 con { chars }
 
+  CC_NONE       = -1                                                            ' no icon
   CC_CHECK      = 0                                                             ' checkmark
+  CC_REFRESH_1  = 1                                                             ' refresh 1
+  CC_REFRESH_2  = 2                                                             ' refresh 2
 
 
 obj
@@ -31,11 +34,14 @@ obj
 dat
 
 CheckMark     byte      $00, $01, $03, $16, $1C, $08, $00, $00                  ' custom characters
+Refresh1      byte      $0D, $13, $07, $00, $00, $1C, $19, $16
+Refresh2      byte      $16, $19, $1C, $00, $00, $07, $13, $0D
 
 
 var
 
   byte  running
+  byte  lcd_icon
 
 
 pub null()
@@ -53,6 +59,8 @@ pub start(address, scl, sda, khz, pullup) : output
 
   output := lcd.start(address, scl, sda, khz, pullup)
   lcd.set_char(CC_CHECK, @CheckMark)
+  lcd.set_char(CC_REFRESH_1, @Refresh1)
+  lcd.set_char(CC_REFRESH_2, @Refresh2)
 
 
 pub display_main_lines(p_line0, p_line1)
@@ -62,7 +70,19 @@ pub display_main_lines(p_line0, p_line1)
   lcd.line(1)
   lcd.str(p_line1)
 
+
 pub display_status_icon(icon)
 
   lcd.crsr_xy(15, 1)
-  lcd.out(icon)
+
+  if icon == CC_NONE
+    lcd.out("")
+  else
+    lcd.out(icon)
+
+lcd_icon := icon
+
+
+pub get_lcd_icon() : result
+
+  return lcd_icon
