@@ -55,6 +55,7 @@ con
 
   #0, L_LINKED, L_LINK_FAIL, L_LINK_WAIT
   #0, I_OFF, I_LINK, I_CHECK, I_ERROR
+  #0, DP_SPLASH, DP_COM, DP_ERROR, DP_HOME, DP_WAIT
 
   MAX_COMMAND_PARTS = 10                                                        ' count, raw string, cmdStr, eCmd, 6 paramValues
 
@@ -106,6 +107,15 @@ Version                 byte    "v3.0.0-beta", 0                                
 DisplaySplashLine0      byte    "Kevinbot v3", 0
 DisplaySplashLine1      byte    "Core v3.0.0-b", 0
 
+DisplayUnlinkLine0      byte    "Tick Error", 0
+DisplayUnlinkLine1      byte    "Tick not Recvd", 0
+
+DisplayWaitingLine0     byte    "Please Wait...", 0
+DisplayWaitingLine1     byte    "Waiting for System", 0
+
+DisplayHomeEnaLine0     byte    "ROBOT ENABLED", 0
+DisplayHomeDisLine0     byte    "ROBOT DISABLED", 0
+
 ' command table
 Commands
                         byte    "core.pinh"             , 0                     ' Simple IO
@@ -115,9 +125,10 @@ Commands
                         byte    "core.tone"             , 0
                         byte    "system.tick"           , 0
                         byte    "core.errors.clear"     , 0
+                        byte    "core.link.unlink"      , 0
                         byte    0
 
-NumCmds                 byte    7
+NumCmds                 byte    8
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -148,6 +159,7 @@ obj
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
   ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
+  dp_tm : "jm_ez_timer"                                                         '   Display update timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
@@ -162,6 +174,8 @@ var { globals }
   byte core_status
   byte link_status
   byte has_been_linked
+
+  byte robot_enabled
 
   '' Cogs
   byte sensor_cog_id
@@ -198,8 +212,11 @@ var { globals }
 
   '' LCD
   long lcd_icon_update_time
-  long lcd_icon
-  byte lcd_showing_splash
+  byte lcd_icon
+  byte lcd_page
+
+  byte lcd_previous_icon
+  byte lcd_previous_page
 
 
 pub main() | b1, b2, index
@@ -207,13 +224,11 @@ pub main() | b1, b2, index
   core_status := S_OK
   link_status := L_LINK_WAIT
   lcd_icon := I_LINK
+  lcd_page := DP_SPLASH
   has_been_linked := false
+  robot_enabled := false
 
   setup()
-
-  if sett.ENABLE_LCD
-    lcd_showing_splash := true
-    disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
 
   waitms(sett.STARTUP_DELAY)
 
@@ -288,6 +303,10 @@ pub main() | b1, b2, index
           core_status := S_OK
           if has_been_linked
             last_system_tick := getms()
+        8:                                                                      ' core.link.unlink
+          has_been_linked := false
+          if core_status == S_TICK_FAIL
+            core_status := S_OK
 
     else
       '' Non-critical tasks
@@ -296,27 +315,72 @@ pub main() | b1, b2, index
 
       '' LCD Updates / Tick
 
-      if (sett.ENABLE_LCD) and (lcd_showing_splash) and (getms() >= sett.LCD_SPLASH_MS)
-        disp.clear()
-        lcd_showing_splash := false
+      if (sett.ENABLE_LCD) and (lcd_page == DP_SPLASH) and (getms() >= sett.LCD_SPLASH_MS)
+        ifnot core_status == S_OK
+          lcd_page := DP_ERROR
+        elseif (not link_status == L_LINKED) and (has_been_linked == false)
+          lcd_page := DP_WAIT
+        elseifnot link_status == L_LINKED
+          lcd_page := DP_COM
+        else
+          lcd_page := DP_HOME
 
+      ' if error, set lcd icon
       case core_status
         S_OK:
           lcd_icon := I_CHECK
         other:
           lcd_icon := I_ERROR
 
-      ' system tick is not found
+      ' system tick errors / display
       if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL) and has_been_linked
         link_status := L_LINK_FAIL
+        lcd_page := DP_COM
         if sett.USE_TICK_OOS
           core_status := S_TICK_FAIL
+          lcd_icon := I_ERROR
         else
           lcd_icon := I_LINK
-      else
+      elseif core_status == S_OK
         link_status := L_LINKED
+      else
+        link_status := L_LINK_FAIL
 
+      ' lcd loop every sett.DISP_SPEED ms
       if sett.ENABLE_LCD
+        if dp_tm.millis() >= sett.DISP_SPEED
+
+          if lcd_page == DP_SPLASH
+            disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
+            next
+          elseifnot link_status == L_LINKED
+            lcd_page := DP_COM
+          elseifnot core_status == S_OK
+            lcd_page := DP_ERROR
+          else
+            lcd_page := DP_HOME
+
+          if (not lcd_icon == lcd_previous_icon) or (not lcd_page == lcd_previous_page)
+            disp.clear()
+
+            ' LCD pages
+            if lcd_page == DP_SPLASH
+              disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
+            elseif lcd_page == DP_COM
+              disp.display_main_lines(@DisplayUnlinkLine0, @DisplayUnlinkLine1)
+            elseif lcd_page == DP_WAIT
+              disp.display_main_lines(@DisplayWaitingLine0, @DisplayWaitingLine1)
+            elseif lcd_page == DP_HOME
+              if robot_enabled
+                disp.display_main_lines(@DisplayHomeEnaLine0, "")
+              else
+                disp.display_main_lines(@DisplayHomeDisLine0, "")
+
+            dp_tm.start()
+            lcd_previous_icon := lcd_icon
+            lcd_previous_page := lcd_page
+
+        ' set lcd icons, animate outside of loop
         case lcd_icon
           I_OFF:
             if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
