@@ -303,10 +303,11 @@ pub main() | b1, b2, index
           link_status := L_NO_LINK
         9:                                                                      ' connection.isready
           link_status := L_LINK_WAIT
+          last_system_tick := getms()                                           ' prevent system tick error
           sys.str(string("ready", 10))
         10:                                                                     ' connection.ok
           link_status := L_LINKED
-          last_system_tick := getms()
+          last_system_tick := getms()                                           ' prevent system tick error
 
 
     else
@@ -317,12 +318,12 @@ pub main() | b1, b2, index
       '' LCD Updates / Tick
 
       if (sett.ENABLE_LCD)
-        if core_status == S_TICK_FAIL
+        if link_status == L_LINK_WAIT
+          lcd_page := DP_WAIT
+        elseif core_status == S_TICK_FAIL
           lcd_page := DP_COM
         elseifnot core_status == S_OK
           lcd_page := DP_ERROR
-        elseif link_status == L_LINK_WAIT
-          lcd_page := DP_WAIT
         elseif link_status == L_NO_LINK
           lcd_page := DP_WAIT
         else
