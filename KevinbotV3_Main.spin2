@@ -172,6 +172,7 @@ var { globals }
   byte core_status
   byte link_status
   byte robot_enabled
+  byte handshake_requested
 
   '' Cogs
   byte sensor_cog_id
@@ -222,6 +223,7 @@ pub main() | b1, b2, index
   lcd_icon := I_LINK
   lcd_page := DP_WAIT
   robot_enabled := false
+  handshake_requested := false
 
   setup()
 
@@ -293,10 +295,13 @@ pub main() | b1, b2, index
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
         6:                                                                      ' system.tick
           last_system_tick := getms()
+          ' Check if re-handshake required
+          if (not (link_status == L_LINKED)) and (handshake_requested == false)
+            sys.str(string("connection.requesthandshake", 10))
+            handshake_requested := true
         7:                                                                      ' core.errors.clear
           core_status := S_OK
-          if link_status == L_LINKED
-            last_system_tick := getms()
+          last_system_tick := getms()                                           ' prevent system tick error
         8:                                                                      ' core.link.unlink
           if core_status == S_TICK_FAIL
             core_status := S_OK
@@ -305,6 +310,7 @@ pub main() | b1, b2, index
           link_status := L_LINK_WAIT
           last_system_tick := getms()                                           ' prevent system tick error
           sys.str(string("ready", 10))
+          ' handshake_requested := false
         10:                                                                     ' connection.ok
           link_status := L_LINKED
           last_system_tick := getms()                                           ' prevent system tick error
@@ -317,7 +323,7 @@ pub main() | b1, b2, index
 
       '' LCD Updates / Tick
 
-      if (sett.ENABLE_LCD)
+      if sett.ENABLE_LCD
         if link_status == L_LINK_WAIT
           lcd_page := DP_WAIT
         elseif core_status == S_TICK_FAIL
