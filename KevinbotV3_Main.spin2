@@ -3,7 +3,7 @@
 ''   File....... KevinbotV3_Main.spin2
 ''   Purpose....
 ''   Author..... Kevin Ahr
-''               Copyright (c) 2023 Kevin Ahr
+''               Copyright (c) 2023 - 2024 Kevin Ahr
 ''   License.... MIT License
 ''   Started.... 03 SEP 2023
 ''
@@ -53,11 +53,10 @@ con
 
   #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL
 
-  #0, L_LINKED, L_LINK_FAIL, L_LINK_WAIT
+  #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
   #0, I_OFF, I_LINK, I_CHECK, I_ERROR
   #0, DP_SPLASH, DP_COM, DP_ERROR, DP_HOME, DP_WAIT
 
-  MAX_COMMAND_PARTS = 10                                                        ' count, raw string, cmdStr, eCmd, 6 paramValues
 
 dat { Serial Queue }
 
@@ -67,7 +66,7 @@ nRxByteMax              long    0
 
 ' TASK use variables
 
-pRxByteHead             long    0                                               ' our QUEUE control vars - received BYTEs
+pRxByteHead             long    0                                               ' QUEUE control vars - received BYTEs
 nRxByteCount            long    0
 
 bInString               long    FALSE
@@ -78,12 +77,12 @@ pRsltStrStart           long    0
 bQueOverrun             long    FALSE
 bStrQueOverrun          long    FALSE
 
-nQStrHeadIdx            long    0                                               ' our QUEUE control vars - received strings
+nQStrHeadIdx            long    0                                               ' QUEUE control vars - received strings
 nQStrTailIdx            long    0
 nQStrCount              long    0
-rxStrPtrSet             long    0[sett.RX_BUFF_LONGS]                           ' our circular buffer - ptrs to received strings
+rxStrPtrSet             long    0[sett.RX_BUFF_LONGS]                           ' circular buffer - ptrs to received strings
 
-serialRxBffr            byte    0[sett.RX_BUFF_BYTES]                           ' our circular buffer - received chars
+serialRxBffr            byte    0[sett.RX_BUFF_BYTES]                           ' circular buffer - received chars
 
 ' task vars
 nTaskChr                long    0
@@ -104,9 +103,6 @@ dat
 
 Version                 byte    "v3.0.0-beta", 0                                ' Core version
 
-DisplaySplashLine0      byte    "Kevinbot v3", 0
-DisplaySplashLine1      byte    "Core v3.0.0-b", 0
-
 DisplayUnlinkLine0      byte    "Tick Error", 0
 DisplayUnlinkLine1      byte    "Tick not Recvd", 0
 
@@ -126,9 +122,11 @@ Commands
                         byte    "system.tick"           , 0
                         byte    "core.errors.clear"     , 0
                         byte    "core.link.unlink"      , 0
+                        byte    "connection.isready"    , 0
+                        byte    "connection.ok"         , 0
                         byte    0
 
-NumCmds                 byte    8
+NumCmds                 byte    10
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -173,8 +171,6 @@ var { globals }
   '' States
   byte core_status
   byte link_status
-  byte has_been_linked
-
   byte robot_enabled
 
   '' Cogs
@@ -222,10 +218,9 @@ var { globals }
 pub main() | b1, b2, index
 
   core_status := S_OK
-  link_status := L_LINK_WAIT
+  link_status := L_NO_LINK
   lcd_icon := I_LINK
-  lcd_page := DP_SPLASH
-  has_been_linked := false
+  lcd_page := DP_WAIT
   robot_enabled := false
 
   setup()
@@ -298,15 +293,21 @@ pub main() | b1, b2, index
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
         6:                                                                      ' system.tick
           last_system_tick := getms()
-          has_been_linked := true
         7:                                                                      ' core.errors.clear
           core_status := S_OK
-          if has_been_linked
+          if link_status == L_LINKED
             last_system_tick := getms()
         8:                                                                      ' core.link.unlink
-          has_been_linked := false
           if core_status == S_TICK_FAIL
             core_status := S_OK
+          link_status := L_NO_LINK
+        9:                                                                      ' connection.isready
+          link_status := L_LINK_WAIT
+          sys.str(string("ready", 10))
+        10:                                                                     ' connection.ok
+          link_status := L_LINKED
+          last_system_tick := getms()
+
 
     else
       '' Non-critical tasks
@@ -315,13 +316,15 @@ pub main() | b1, b2, index
 
       '' LCD Updates / Tick
 
-      if (sett.ENABLE_LCD) and (lcd_page == DP_SPLASH) and (getms() >= sett.LCD_SPLASH_MS)
-        ifnot core_status == S_OK
-          lcd_page := DP_ERROR
-        elseif (not link_status == L_LINKED) and (has_been_linked == false)
-          lcd_page := DP_WAIT
-        elseifnot link_status == L_LINKED
+      if (sett.ENABLE_LCD)
+        if core_status == S_TICK_FAIL
           lcd_page := DP_COM
+        elseifnot core_status == S_OK
+          lcd_page := DP_ERROR
+        elseif link_status == L_LINK_WAIT
+          lcd_page := DP_WAIT
+        elseif link_status == L_NO_LINK
+          lcd_page := DP_WAIT
         else
           lcd_page := DP_HOME
 
@@ -333,40 +336,19 @@ pub main() | b1, b2, index
           lcd_icon := I_ERROR
 
       ' system tick errors / display
-      if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL) and has_been_linked
-        link_status := L_LINK_FAIL
-        lcd_page := DP_COM
-        if sett.USE_TICK_OOS
+      if link_status == L_LINKED
+        if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL)
+          link_status := L_NO_LINK
           core_status := S_TICK_FAIL
-          lcd_icon := I_ERROR
-        else
-          lcd_icon := I_LINK
-      elseif core_status == S_OK
-        link_status := L_LINKED
-      else
-        link_status := L_LINK_FAIL
 
       ' lcd loop every sett.DISP_SPEED ms
       if sett.ENABLE_LCD
         if dp_tm.millis() >= sett.DISP_SPEED
-
-          if lcd_page == DP_SPLASH
-            disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
-            next
-          elseifnot link_status == L_LINKED
-            lcd_page := DP_COM
-          elseifnot core_status == S_OK
-            lcd_page := DP_ERROR
-          else
-            lcd_page := DP_HOME
-
           if (not lcd_icon == lcd_previous_icon) or (not lcd_page == lcd_previous_page)
             disp.clear()
 
             ' LCD pages
-            if lcd_page == DP_SPLASH
-              disp.display_main_lines(@DisplaySplashLine0, @DisplaySplashLine1)
-            elseif lcd_page == DP_COM
+            if lcd_page == DP_COM
               disp.display_main_lines(@DisplayUnlinkLine0, @DisplayUnlinkLine1)
             elseif lcd_page == DP_WAIT
               disp.display_main_lines(@DisplayWaitingLine0, @DisplayWaitingLine1)
@@ -414,16 +396,16 @@ pub sensor_loop() | left, right, internal, owx_status
   ' DS18b20
   owx_status := temp.start(sett.get_left_motor_sn(), sett.get_right_motor_sn(), sett.get_internal_temp_sn(), pins.ONE_WIRE, temp.PU_1K5)
 
-  case owx_status
-    temp.BUS_SHORT:
-      core_status := S_OW_SHORT
-      return
-    temp.BAD_RESET:
-      core_status := S_OW_ERROR
-      return
-    temp.NO_DEVICE:
-      core_status := S_OW_DNF
-      return
+  ' case owx_status
+  '   temp.BUS_SHORT:
+  '     core_status := S_OW_SHORT
+  '     return
+  '   temp.BAD_RESET:
+  '     core_status := S_OW_ERROR
+  '     return
+  '   temp.NO_DEVICE:
+  '     core_status := S_OW_DNF
+  '     return
 
   ds_tm.start()
 
@@ -687,24 +669,24 @@ pub debug_data1(p_str, arg1)
 
 '' Send data to PC Terminal / DebugTool
 
-  if (sett.DEBUGTOOL)
-    term.fstr1(p_str, arg1)
+  'if (sett.DEBUGTOOL)
+    'term.fstr1(p_str, arg1)
 
 
 pub debug_data2(p_str, arg1, arg2)
 
 '' Send data to PC Terminal / DebugTool
 
-  if (sett.DEBUGTOOL)
-    term.fstr2(p_str, arg1, arg2)
+  'if (sett.DEBUGTOOL)
+    'term.fstr2(p_str, arg1, arg2)
 
 
 pub debug_data3(p_str, arg1, arg2, arg3)
 
 '' Send data to PC Terminal / DebugTool
 
-  if (sett.DEBUGTOOL)
-    term.fstr3(p_str, arg1, arg2, arg3)
+  'if (sett.DEBUGTOOL)
+    'term.fstr3(p_str, arg1, arg2, arg3)
 
 
 pub wait_for_terminal(clear)

@@ -38,7 +38,6 @@ con { Kevinbot v3 Constant Settings }
 
   SYSTEM_TICK   = TICK_SPEED                                                    ' Tick speed of System (use TICK_SPEED for "CORE" tick) default=TICK_SPEED
   SYS_TICK_TOL  = 100                                                           ' System Tick Tolerance default=100
-  USE_TICK_OOS  = true                                                          ' Enable Tick Out-of-sync error (turn off when debugging) default=true
 
   '' Display
   ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true
@@ -47,8 +46,6 @@ con { Kevinbot v3 Constant Settings }
   LCD_LINES     = 2                                                                ' default=2
 
   LCD_ICON_SPD  = 500                                                           ' Time to refresh lcd status icon default=500
-
-  LCD_SPLASH_MS = 3000                                                          ' TIme to show splash screen on LCD default=3000
 
   '' Battery
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
