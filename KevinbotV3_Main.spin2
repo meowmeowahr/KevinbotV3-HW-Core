@@ -51,7 +51,7 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL, S_QUEUE_OVERRUN
 
   #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
   #0, I_OFF, I_LINK, I_CHECK, I_ERROR
@@ -111,6 +111,9 @@ DisplayWaitingLine1     byte    "Waiting for System", 0
 
 DisplayHomeEnaLine0     byte    "ROBOT ENABLED", 0
 DisplayHomeDisLine0     byte    "ROBOT DISABLED", 0
+
+DisplayErrorLine0       byte    "System Error", 0
+DisplayErrorLine1       byte    "Error:", 0
 
 ' command table
 Commands
@@ -302,6 +305,7 @@ pub main() | b1, b2, index
         7:                                                                      ' core.errors.clear
           core_status := S_OK
           last_system_tick := getms()                                           ' prevent system tick error
+          reset_serial_queue_status()
         8:                                                                      ' core.link.unlink
           if core_status == S_TICK_FAIL
             core_status := S_OK
@@ -364,7 +368,8 @@ pub main() | b1, b2, index
                 disp.display_main_lines(@DisplayHomeEnaLine0, "")
               else
                 disp.display_main_lines(@DisplayHomeDisLine0, "")
-
+            elseif lcd_page == DP_ERROR
+              disp.display_main_lines(@DisplayErrorLine0, str.append(@DisplayErrorLine1, str.dec(core_status)))
             dp_tm.start()
             lcd_previous_icon := lcd_icon
             lcd_previous_page := lcd_page
@@ -553,7 +558,7 @@ pri serial_enqueue_char(nChr) : bFailedStatus
             pRxByteHead := @serialRxBffr
     else
         bQueOverrun := TRUE ' signal that we lost incoming data!!!
-        sys.str(string("serial.error=BUFF_FULL"))
+        core_status := S_QUEUE_OVERRUN
         bFailedStatus := TRUE
 
 
