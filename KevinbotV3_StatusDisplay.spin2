@@ -94,3 +94,7 @@ pub get_lcd_icon() : result
 pub clear()
 
   lcd.clear()
+
+pub set_backlight(on)
+
+  lcd.backlight(on)

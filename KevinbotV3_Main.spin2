@@ -51,7 +51,7 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL, S_QUEUE_OVERRUN
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP
 
   #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
   #0, I_OFF, I_LINK, I_CHECK, I_ERROR
@@ -103,17 +103,20 @@ dat
 
 Version                 byte    "v3.0.0-beta", 0                                ' Core version
 
-DisplayUnlinkLine0      byte    "Tick Error", 0
-DisplayUnlinkLine1      byte    "Tick not Recvd", 0
+DisplayUnlinkLine0      byte    "Tick Error"            , 0
+DisplayUnlinkLine1      byte    "Tick not Recvd"        , 0
 
-DisplayWaitingLine0     byte    "Please Wait...", 0
-DisplayWaitingLine1     byte    "Waiting for System", 0
+DisplayWaitingLine0     byte    "Please Wait..."        , 0
+DisplayWaitingLine1     byte    "Waiting for System"    , 0
 
-DisplayHomeEnaLine0     byte    "ROBOT ENABLED", 0
-DisplayHomeDisLine0     byte    "ROBOT DISABLED", 0
+DisplayHomeEnaLine0     byte    "ROBOT ENABLED"         , 0
+DisplayHomeDisLine0     byte    "ROBOT DISABLED"        , 0
 
-DisplayErrorLine0       byte    "System Error", 0
-DisplayErrorLine1       byte    "Error:", 0
+DisplayErrorLine0       byte    "System Error"          , 0
+DisplayErrorLine1       byte    "Error:"                , 0
+
+DisplayEstopLine0       byte    " EMERGENCY STOP "      , 0
+DisplayEstopLine1       byte    "Stop Requested"        , 0
 
 ' command table
 Commands
@@ -127,9 +130,11 @@ Commands
                         byte    "core.link.unlink"      , 0
                         byte    "connection.isready"    , 0
                         byte    "connection.ok"         , 0
+                        byte    "system.enabled"        , 0
+                        byte    "system.estop"          , 0
                         byte    0
 
-NumCmds                 byte    10
+NumCmds                 byte    12
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -196,8 +201,8 @@ var { globals }
   '' Batteries
   long  batt_1_voltage
   long  batt_2_voltage
-  word  batt_meter_1_voltage
-  word  batt_meter_2_voltage
+  long  batt_meter_1_voltage
+  long  batt_meter_2_voltage
   byte  batt_1_status
   byte  batt_2_status
 
@@ -219,12 +224,13 @@ var { globals }
   byte lcd_previous_page
 
 
-pub main() | b1, b2, index
+pub main() | b1, b2, index, lcd_previous_enabled
 
   core_status := S_OK
   link_status := L_NO_LINK
   lcd_icon := I_LINK
   lcd_page := DP_WAIT
+  lcd_previous_enabled := false
   robot_enabled := false
   handshake_requested := false
 
@@ -285,6 +291,9 @@ pub main() | b1, b2, index
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
+      term.str(@rxCmdBuffer)
+      term.tx(13)
+      term.tx(10)
       index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
       case index
         1: pinh(str.atoi(@rxValueBuffer))                                       ' core.pinh
@@ -318,6 +327,12 @@ pub main() | b1, b2, index
         10:                                                                     ' connection.ok
           link_status := L_LINKED
           last_system_tick := getms()                                           ' prevent system tick error
+        11:                                                                     ' system.enabled
+          robot_enabled := str.atoi(@rxValueBuffer)
+        12:                                                                     ' system.estop
+          robot_enabled := 2
+          core_status := S_ESTOP
+          emergency_stop()
 
 
     else
@@ -355,7 +370,8 @@ pub main() | b1, b2, index
       ' lcd loop every sett.DISP_SPEED ms
       if sett.ENABLE_LCD
         if dp_tm.millis() >= sett.DISP_SPEED
-          if (not lcd_icon == lcd_previous_icon) or (not lcd_page == lcd_previous_page)
+          if (not lcd_icon == lcd_previous_icon) or (not lcd_page == lcd_previous_page) or (not lcd_previous_enabled == robot_enabled)
+            lcd_previous_enabled := robot_enabled
             disp.clear()
 
             ' LCD pages
@@ -399,6 +415,20 @@ pub main() | b1, b2, index
               lcd_icon_update_time := getms()
               disp.display_status_icon(disp.CC_ERROR)
 
+
+pub emergency_stop()
+  cogstop(rx_cog_id)
+  cogstop(sensor_cog_id)
+  cogstop(term_cog_id)
+  cogstop(sys_serial_cog_id)
+  ' TODO: Motor kill here
+  if sett.ENABLE_LCD
+    disp.display_status_icon(disp.CC_ERROR)
+    disp.display_main_lines(@DisplayEstopLine0, @DisplayEstopLine1)
+    disp.set_backlight(false)
+
+  repeat
+    waitct(0)
 
 
 pub sensor_loop() | left, right, internal, owx_status
