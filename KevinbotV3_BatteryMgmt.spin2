@@ -14,7 +14,7 @@
 
 con { config options }
 
-  #1, M_OFF, M_V12, M_V24, M_V12_V12, M_V12_V24
+  #1, M_OFF, M_V12, M_V24, M_V12_V12, M_V12_V24, M_V12_V18
   #0, S_NORMAL, S_UNDER, S_OVER, S_STOPPED
 
 
@@ -31,10 +31,10 @@ var
   byte  mode
   byte  running
 
-  word  hv_1
-  word  lv_1
-  word  hv_2
-  word  lv_2
+  long  hv_1
+  long  lv_1
+  long  hv_2
+  long  lv_2
 
 
 pub null()
@@ -75,10 +75,9 @@ pub get_voltages() : voltage_1, voltage_2 | level_1, level_2
     M_OFF: voltage_1 := -1
     other: voltage_1 := util.map(level_1, 0, 1000, 0, 358)
   case mode
-    M_V12: voltage_2 := -1
-    M_V24: voltage_2 := -1
     M_V12_V12: voltage_2 := util.map(level_2, 0, 1000, 0, 358)
     M_V12_V24: voltage_2 := util.map(level_2, 0, 1000, 0, 358) - voltage_1
+    M_V12_V18: voltage_2 := util.map(level_2, 0, 1000, 0, 358)
     other: voltage_2 := -1
 
   return voltage_1, voltage_2

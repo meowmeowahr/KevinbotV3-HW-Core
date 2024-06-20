@@ -37,7 +37,7 @@ con { Kevinbot v3 Constant Settings }
   DISP_SPEED    = 500                                                           ' Millisecond delay between every display (lcd) update default=500
 
   SYSTEM_TICK   = TICK_SPEED                                                    ' Tick speed of System (use TICK_SPEED for "CORE" tick) default=TICK_SPEED
-  SYS_TICK_TOL  = 100                                                           ' System Tick Tolerance default=100
+  SYS_TICK_TOL  = 200                                                           ' System Tick Tolerance default=200
 
   '' Display
   ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true
@@ -54,7 +54,7 @@ con { Kevinbot v3 Constant Settings }
   B2_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #2 default=116
   B2_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=142
 
-  BMS_MODE      = batt.M_V12_V24                                                ' Expected voltages for voltmeters default=batt.M_V12_V24
+  BMS_MODE      = batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V24
 
   '' Servos
   ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true
