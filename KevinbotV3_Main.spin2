@@ -249,10 +249,6 @@ pub main() | b1, b2, index, lcd_previous_enabled
   sensor_cog_id := cogspin(newcog, sensor_loop, @sensor_stack)
   rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
 
-  ' Init Data for DebugTool
-  if sett.DEBUGTOOL
-    send_debugtool_data()
-
   ' Start timers
   tk_tm.start()
   bt_tm.start()
@@ -263,12 +259,8 @@ pub main() | b1, b2, index, lcd_previous_enabled
       sys.fstr1(string("core.uptime=%d", 10), getsec())
       sys.fstr1(string("core.uptime_ms=%d", 10), getms())
 
-      debug_data1(string("core.uptime=%d", 10), getsec())
-      debug_data1(string("core.uptime_ms=%d", 10), getms())
-
       ifnot core_status == S_OK
         sys.fstr1(string("core.error=%d", 10), core_status)
-        debug_data1(string("core.error=%d", 10), core_status)
 
       tk_tm.start()
 
@@ -281,10 +273,6 @@ pub main() | b1, b2, index, lcd_previous_enabled
       sys.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
       sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
       sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
-
-      debug_data2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
-      debug_data2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
-      debug_data2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
       bt_tm.start()
 
@@ -454,7 +442,6 @@ pub sensor_loop() | left, right, internal, owx_status
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
       left, right, internal := temp.read_temps()
-      debug_data3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
 
@@ -664,23 +651,6 @@ pri copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
 '' End of Serial Queue ''
 '' =================== ''
 
-pub send_debugtool_data()
-
-'' Send DebugTool Init data
-
-  if core_status == S_OK
-    debug_data1(string("core.ready=%s", 10), string("true"))
-  else
-    debug_data1(string("core.ready=%s", 10), string("false"))
-
-    debug_data1(string("core.error=%d", 10), core_status)
-    debug_data1(string("core.name=%s", 10), sett.system_name())
-    debug_data1(string("core.version=%s", 10), @Version)
-    debug_data1(string("sett.br_system=%d", 10), sett.BR_SYSTEM)
-    debug_data1(string("sett.br_term=%d", 10), sett.BR_TERM)
-    debug_data1(string("sett.tick_speed=%d", 10), sett.TICK_SPEED)
-
-
 pub setup()
 
 '' Configure IO and objects for application
@@ -697,38 +667,6 @@ pub setup()
     lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5)
   else
     lcd_init_status := 1
-
-
-pub debug_data0(p_str)
-
-'' Send data to PC Terminal / DebugTool
-
-  if (sett.DEBUGTOOL)
-    term.fstr0(p_str)
-
-
-pub debug_data1(p_str, arg1)
-
-'' Send data to PC Terminal / DebugTool
-
-  'if (sett.DEBUGTOOL)
-    'term.fstr1(p_str, arg1)
-
-
-pub debug_data2(p_str, arg1, arg2)
-
-'' Send data to PC Terminal / DebugTool
-
-  'if (sett.DEBUGTOOL)
-    'term.fstr2(p_str, arg1, arg2)
-
-
-pub debug_data3(p_str, arg1, arg2, arg3)
-
-'' Send data to PC Terminal / DebugTool
-
-  'if (sett.DEBUGTOOL)
-    'term.fstr3(p_str, arg1, arg2, arg3)
 
 
 pub wait_for_terminal(clear)
