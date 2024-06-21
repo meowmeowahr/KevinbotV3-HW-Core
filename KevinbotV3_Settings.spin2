@@ -50,10 +50,10 @@ con { Kevinbot v3 Constant Settings }
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
   B1_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #1 default=142
 
-  B2_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #2 default=116
-  B2_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=142
+  B2_LOW_VOLT   = 170                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #2 default=170
+  B2_HIGH_VOLT  = 220                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=220
 
-  BMS_MODE      = batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V24
+  BMS_MODE      = batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V18
 
   '' Servos
   ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true
