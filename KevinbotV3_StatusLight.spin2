@@ -1,0 +1,78 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_StatusDisplay.spin2
+''   Purpose.... Provide a Status Display for Kevinbot v3 Core
+''   Author..... Kevin Ahr
+''               Copyright (c) 2023 Kevin Ahr
+''   License.... MIT License
+''   Started....
+''   Updated.... 21 JUN 2024
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+obj
+
+    tm      :   "jm_ez_timer"                                                   ' timer for flashing
+
+
+var
+
+  byte  running
+  byte  state                                                                   ' 0-off, 1-on, 2-flash
+  byte  led_pin
+  byte  update_rate
+
+
+pub null()
+
+'' This is not a top level object
+
+
+pub start(pin, rate)
+
+'' Start rsl
+
+    running := true
+    led_pin := pin
+    update_rate := rate
+    tm.start()
+
+
+pub set_state(new_state)
+
+'' Set rsl state
+'' 0=off, 1=on, 2=flash
+'' Forces update
+
+    if new_state == state
+        return
+
+    state := new_state
+    set_rsl()
+
+
+pub update() : result
+
+'' Attempt to update rsl
+'' Does nothing and returns 0 if called before rate expired
+'' Else, updates rsl and returns 1
+
+    if tm.millis() < update_rate
+        return 0
+    else
+        set_rsl()
+        tm.start()                                                              ' reset timer
+        return 1
+
+pri set_rsl()
+
+'' Force update rsl
+
+    if state == 0
+        pinl(led_pin)
+    elseif state == 1
+        pinh(led_pin)
+    else
+        pint(led_pin)

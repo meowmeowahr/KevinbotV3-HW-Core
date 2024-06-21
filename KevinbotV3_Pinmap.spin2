@@ -36,8 +36,8 @@ con { Kevinbot v3 Control Board }
 
   LED           = 34 { O }                                                    ' all robot leds (daisy-chained)
 
-  RPI_TX        = 35 { I }                                                    ' Raspberry Pi
-  RPI_RX        = 36 { O }
+  RPI_TX        = 35 { O }                                                    ' Raspberry Pi
+  RPI_RX        = 36 { I }
 
   VOLT1_P       = 37 { I }                                                    ' voltage sensors
   VOLT2_P       = 38 { I }
@@ -48,6 +48,8 @@ con { Kevinbot v3 Control Board }
 
   SDA           = 41 { IO }                                                   ' i2c bus
   SCL           = 42 { IO }                                                   ' SCL pin must be +1 of SDA
+
+  RSL           = LED1  { O }                                                 ' Status/warning light
 
 pub null()
 

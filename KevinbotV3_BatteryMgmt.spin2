@@ -23,7 +23,7 @@ obj
   volt1   : "jm_ez_analog"                                                      ' smart pin analog input for voltage meter
   volt2   : "jm_ez_analog"                                                      ' smart pin analog input for voltage meter
 
-  util  : "ka_utils"                                                            ' Misc utility methods
+  util    : "ka_utils"                                                          ' Misc utility methods
 
 
 var

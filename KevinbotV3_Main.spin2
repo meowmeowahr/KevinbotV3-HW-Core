@@ -51,7 +51,8 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL, ...
+      S_QUEUE_OVERRUN, S_ESTOP, S_BATT1_UV, S_BATT1_OV, S_BATT2_UV, S_BATT2_OV, S_BATT_UV, S_BATT_OV
 
   #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
   #0, I_OFF, I_LINK, I_CHECK, I_ERROR
@@ -160,6 +161,7 @@ obj
   str   : "string"                                                              '   String utilities
 
   beep  : "jm_pwm"                                                              '   error buzzer pwm
+  rsl   : "KevinbotV3_StatusLight"                                              '   status light
   disp  : "KevinbotV3_StatusDisplay"                                            '   status lcd
 
   tk_tm : "jm_ez_timer"                                                         '   Core tick timer
@@ -274,7 +276,38 @@ pub main() | b1, b2, index, lcd_previous_enabled
       sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
       sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
+      if sett.BATT_ERRORS
+        if (batt_1_status == batt.S_UNDER) and (batt_2_status == batt.S_UNDER)
+          ' both batts are dead
+          core_status := S_BATT_UV
+        elseif (batt_1_status == batt.S_OVER) and (batt_2_status == batt.S_OVER)
+          ' both batts are over-volt
+          core_status := S_BATT_OV
+        elseif batt_1_status == batt.S_UNDER
+          ' batt 1 is dead
+          core_status := S_BATT1_UV
+        elseif batt_1_status == batt.S_OVER
+          ' batt 1 is over-volt
+          core_status := S_BATT1_OV
+        elseif batt_2_status == batt.S_UNDER
+          ' batt 2 is dead
+          core_status := S_BATT2_UV
+        elseif batt_2_status == batt.S_OVER
+          ' batt 2 is over-volt
+          core_status := S_BATT2_OV
+
       bt_tm.start()
+
+    ' Update rsl
+    if sett.ENABLE_RSL
+      if robot_enabled == 0
+        rsl.set_state(1)
+      elseif robot_enabled == 1
+        rsl.set_state(2)
+      else
+        rsl.set_state(0)
+
+      rsl.update()
 
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
@@ -410,6 +443,8 @@ pub emergency_stop()
   cogstop(term_cog_id)
   cogstop(sys_serial_cog_id)
   ' TODO: Motor kill here
+  if sett.ENABLE_RSL
+    rsl.set_state(0)
   if sett.ENABLE_LCD
     disp.display_status_icon(disp.CC_ERROR)
     disp.display_main_lines(@DisplayEstopLine0, @DisplayEstopLine1)
@@ -668,6 +703,10 @@ pub setup()
     lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5)
   else
     lcd_init_status := 1
+
+  ' Status light
+  if sett.ENABLE_RSL
+    rsl.start(pins.RSL, sett.RSL_RATE)
 
 
 pub wait_for_terminal(clear)
