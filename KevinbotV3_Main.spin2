@@ -426,16 +426,17 @@ pub sensor_loop() | left, right, internal, owx_status
   ' DS18b20
   owx_status := temp.start(sett.get_left_motor_sn(), sett.get_right_motor_sn(), sett.get_internal_temp_sn(), pins.ONE_WIRE, temp.PU_1K5)
 
-  ' case owx_status
-  '   temp.BUS_SHORT:
-  '     core_status := S_OW_SHORT
-  '     return
-  '   temp.BAD_RESET:
-  '     core_status := S_OW_ERROR
-  '     return
-  '   temp.NO_DEVICE:
-  '     core_status := S_OW_DNF
-  '     return
+  if sett.OWX_ERRORS
+    case owx_status
+      temp.BUS_SHORT:
+        core_status := S_OW_SHORT
+        return
+      temp.BAD_RESET:
+        core_status := S_OW_ERROR
+        return
+      temp.NO_DEVICE:
+        core_status := S_OW_DNF
+        return
 
   ds_tm.start()
 

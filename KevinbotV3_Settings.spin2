@@ -58,6 +58,8 @@ con { Kevinbot v3 Constant Settings }
   '' Servos
   ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true
 
+  '' One-Wire
+  OWX_ERRORS    = false                                                         ' Enable One-Wire Errors (shorted, dnf, etc) if true, errors will cause system disable, else errors are ignored default=true
 
 dat { Kevinbot v3 Constant Settings }
 
