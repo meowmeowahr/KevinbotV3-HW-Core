@@ -226,7 +226,7 @@ var { globals }
   byte lcd_previous_page
 
 
-pub main() | b1, b2, index, lcd_previous_enabled
+pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -349,7 +349,10 @@ pub main() | b1, b2, index, lcd_previous_enabled
           link_status := L_LINKED
           last_system_tick := getms()                                           ' prevent system tick error
         11:                                                                     ' system.enabled
-          robot_enabled := str.atoi(@rxValueBuffer)
+          if core_status == S_OK
+            robot_enabled := str.atoi(@rxValueBuffer)
+          else
+            robot_enabled := 0
         12:                                                                     ' system.estop
           robot_enabled := 2
           core_status := S_ESTOP
@@ -406,7 +409,9 @@ pub main() | b1, b2, index, lcd_previous_enabled
               else
                 disp.display_main_lines(@DisplayHomeDisLine0, "")
             elseif lcd_page == DP_ERROR
-              disp.display_main_lines(@DisplayErrorLine0, str.append(@DisplayErrorLine1, str.dec(core_status)))
+              str.append(@lcd_error_string, @DisplayErrorLine1)
+              str.append(@lcd_error_string, str.dec(core_status))
+              disp.display_main_lines(@DisplayErrorLine0, @lcd_error_string)
             dp_tm.start()
             lcd_previous_icon := lcd_icon
             lcd_previous_page := lcd_page
