@@ -59,7 +59,8 @@ con { Kevinbot v3 Constant Settings }
 
   BMS_MODE      = batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V18
 
-  BATT_ERRORS   = true                                                          ' ONLY FOR DEBUGGING, DO NOT DISABLE FOR NORMAL OPERATION, disable over and undervoltage errors and disabling default=true
+  ' TODO: Re-enable later
+  BATT_ERRORS   = false                                                          ' ONLY FOR DEBUGGING, DO NOT DISABLE FOR NORMAL OPERATION, disable over and undervoltage errors and disabling default=true
 
   '' Servos
   ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true

@@ -102,7 +102,7 @@ pub get_statuses() : status_1, status_2 | voltage_1, voltage_2
         status_1 := S_NORMAL
 
       status_2 := S_NORMAL
-    M_V12_V12, M_V12_V24:
+    M_V12_V12, M_V12_V24, M_V12_V18:
       if (voltage_1 > hv_1)
         status_1 := S_OVER
       elseif (voltage_1 < lv_1)
