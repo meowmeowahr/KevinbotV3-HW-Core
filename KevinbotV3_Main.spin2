@@ -409,6 +409,7 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
               else
                 disp.display_main_lines(@DisplayHomeDisLine0, "")
             elseif lcd_page == DP_ERROR
+              bytefill(@lcd_error_string, 0, strsize(@lcd_error_string))
               str.append(@lcd_error_string, @DisplayErrorLine1)
               str.append(@lcd_error_string, str.dec(core_status))
               disp.display_main_lines(@DisplayErrorLine0, @lcd_error_string)
