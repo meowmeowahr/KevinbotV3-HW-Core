@@ -478,6 +478,7 @@ pub sensor_loop() | left, right, internal, owx_status
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
       left, right, internal := temp.read_temps()
+      sys.txflush()
       sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
 
