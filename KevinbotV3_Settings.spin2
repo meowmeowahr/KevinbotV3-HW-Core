@@ -71,7 +71,7 @@ dat { Kevinbot v3 Constant Settings }
 
 ' DS18b20 serial numbers
 
-  LEFT_MOTOR_SN         byte    $28, $98, $C0, $23, $0C, $32, $20, $F0          ' Left motor thermometer serial number
+  LEFT_MOTOR_SN         byte    $28, $05, $89, $4D, $0C, $32, $20, $94          ' Left motor thermometer serial number
   RT_MOTOR_SN           byte    $28, $BF, $08, $42, $0C, $32, $20, $C0          ' Right motor thermometer serial number
   INTERNAL_TEMP_SN      byte    $28, $2E, $5C, $47, $0C, $32, $20, $4D          ' Internal thermometer serial number
 

@@ -1,0 +1,279 @@
+'' =================================================================================================
+''
+''   File....... KevinbotV3_DS_SerialTool.spin2
+''   Purpose....
+''   Author..... Jon "JonnyMac" McPhalen with changes for Kevinbot by Kevin Ahr
+''               Copyright (c) 2021 Jon McPhalen, 2024 Kevin Ahr
+''               -- see below for terms of use
+''   E-mail..... jon.mcphalen@gmail.com, meowmeowahr@gmail.com
+''   Started....
+''   Updated.... 23 JUN 2024
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+con { timing }
+
+  CLK_FREQ = 200_000_000                                        ' system freq as a constant
+  MS_001   = CLK_FREQ / 1_000                                   ' ticks in 1ms
+  US_001   = CLK_FREQ / 1_000_000                               ' ticks in 1us
+
+  _clkfreq = CLK_FREQ                                           ' set system clock
+
+
+con { terminal }
+
+  #0, T_PST, T_ANSI                                             ' terminal types
+
+  T_TYPE = T_ANSI
+
+
+con { fixed io pins }
+
+  RX1      = 63  { I }                                          ' programming / debug
+  TX1      = 62  { O }
+
+  SF_CS    = 61  { O }                                          ' serial flash
+  SF_SCK   = 60  { O }
+  SF_SDO   = 59  { O }
+  SF_SDI   = 58  { I }
+
+  SD_SCK   = 61  { O }                                          ' sd card
+  SD_CS    = 60  { O }
+  SD_SDO   = 59  { O }
+  SD_SDI   = 58  { I }
+
+  LED2     = 57  { O }                                          ' Eval and Edge LEDs
+  LED1     = 56  { O }
+
+con
+
+  #true,  ON, OFF
+  #false, NO, YES
+
+  INT_PULLUP = YES
+
+  RD_ROM     = $33
+
+
+obj
+
+' main                                                                          ' * master Spin cog
+  owd   : "jm_1-wire_devices"                                                   '   1-Wire device names/descriptions
+  term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
+  ansi  : "jm_ansi"                                                             '   ANSI terminal control sequences
+  sett  : "KevinbotV3_Settings"                                                 '   Kevinbot v3 Static Settings
+  pins  : "KevinbotV3_Pinmap"                                                   '   Kevinbot v3 Board Pinouts
+
+' * uses cog when loaded
+
+
+var { globals }
+
+  byte  snum[8]                                                 ' storage for serial number
+
+
+pub main() | status
+
+  setup()
+
+  wait_for_terminal(false)
+
+  term.fstr0(string("1-Wire Device ID\r\n\r\n"))
+
+  repeat
+
+    status := ow_reset()
+
+    case status
+        %00 :
+            term.str(string("Bus Short"))
+
+        %01 :
+            term.str(string("Bus Error"))
+
+        %11 :
+            term.str(string("No Device"))
+
+        %10 :
+            clear_screen()
+            read_sn(@snum)
+            read_sn(@snum)
+            show_sn(@snum)
+            term.fstr1(string("-- %s\r\n"), owd.name(snum[0]))
+            term.fstr1(string("-- %s\r\n"), owd.description(snum[0]))
+
+    waitms(2000)
+
+pub show_sn(p_sn) | x, idx
+
+  term.str(string("Serial Number:", 13, 10))
+  term.str(string("-- "))
+
+  repeat x from 7 to 0                                          ' display serial # bytes
+    term.hex(byte[p_sn][x])
+    term.tx(" ")
+  term.tx(13)
+  term.tx(10)
+
+  if (validate_crc(@snum))
+    term.str(string("-- Good CRC", 13, 10))
+  else
+    term.str(string("-- CRC Error", 13, 10))
+
+
+pub validate_crc(p_sn) : check
+
+'' Compares calculated CRC with CRC in packet
+'' -- p_sn is a pointer to 1W serial number (8 bytes)
+
+  return (ow_crc8(p_sn, 7) == byte[p_sn][7]) ? true : false
+
+
+pub read_sn(p_sn)
+
+'' Reads serial number from 1W device
+'' -- stores in array at p_sn
+'' -- only connect one device at a time for this method
+
+  ow_reset()
+  ow_write(RD_ROM)
+  repeat 8
+    byte[p_sn++] := ow_read()
+
+
+pub setup()
+
+'' Configure IO and objects for application
+
+  if (INT_PULLUP == YES)
+    wrpin(pins.ONE_WIRE, P_HIGH_1K5)                                      ' internal, approximates 3.3k
+  else
+    wrpin(pins.ONE_WIRE, P_HIGH_FLOAT)                                    ' external (no high output drive)
+
+  pinhigh(pins.ONE_WIRE)                                                  ' activate pullup
+
+  term.tstart(sett.BR_TERM)                                          ' start terminal io
+
+
+pub wait_for_terminal(clear)
+
+'' Wait for terminal to be open and key pressed
+
+  term.rxflush()
+  term.rx()
+  if (clear)
+    clear_screen()
+
+
+pub clear_screen()
+
+  if (T_TYPE == T_PST)
+    term.tx(term.CLS)
+  else
+    term.str(ansi.hide_cursor())
+    term.str(ansi.home())
+    term.str(ansi.cls())
+
+
+con { 1-Wire interface }
+
+
+pri ow_reset() : result
+
+'' Resets 1-Wire bus; returns bus status
+''
+''   %00 = bus short
+''   %01 = bad response; possible interference on bus
+''   %10 = good bus & presence detection
+''   %11 = no device
+
+  pinl(pins.ONE_WIRE)                                                     ' bus low
+  waitus(480)                                                   ' reset pulse
+  pinh(pins.ONE_WIRE)                                                     ' release to pull-up
+  waitus(10)                                                     ' give bus time to rise
+  result.[1] := pinr(pins.ONE_WIRE)                                       ' test for bus short
+  waitus(60)
+  result.[0] := pinr(pins.ONE_WIRE)                                       ' test for presence
+  waitus(410)                                                   ' finish reset
+
+
+pri ow_write(b) | x, t
+
+'' Write byte to 1-Wire bus
+
+  repeat x from 0 to 7                                          ' 8 bits, LSB first
+    t := (b.[x] == 1) ? 6 : 60                                  ' get bit time
+    pinl(pins.ONE_WIRE)                                                   ' create bit
+    waitus(t)                                                   ' hold for bit timing
+    pinh(pins.ONE_WIRE)                                                   ' release bus to pull-up
+    waitus(70-t)                                                ' finish write slow
+
+
+pri ow_read() : b | x
+
+'' Read byte from 1-Wire bus
+
+  repeat x from 0 to 7                                          ' 8 bits, LSB first
+    pinl(pins.ONE_WIRE)                                                   ' write pulse
+    waitus(6)
+    pinh(pins.ONE_WIRE)                                                   ' release to pull-up
+    waitus(9)                                                   ' hold for sample-time (~15us)
+    b.[x] := pinr(pins.ONE_WIRE)                                          ' get bit
+    waitus(55)                                                  ' finish read slow
+
+
+pri ow_rdbit() : b
+
+'' Reads bit from 1-Wire bus
+'' -- useful for monitoring device busy status
+
+  pinl(pins.ONE_WIRE)                                                     ' bus low / start read slot
+  waitus(6)
+  pinh(pins.ONE_WIRE)                                                     ' release bus to pull-up
+  waitus(9)                                                     ' hold-off before sample
+  b := pinr(pins.ONE_WIRE)                                                ' read bus
+  waitus(55)                                                    ' finish read slot
+
+
+pri ow_crc8(p_src, n) : crc | b
+
+'' Returns CRC8 of n bytes at p_src
+'' -- implementation by Micah Dowty
+
+  repeat n
+    b := byte[p_src++]
+    repeat 8
+      if (crc ^ b) & 1
+        crc := (crc >> 1) ^ $8C
+      else
+        crc >>= 1
+      b >>= 1
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}

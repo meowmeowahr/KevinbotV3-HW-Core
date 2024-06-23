@@ -1,0 +1,156 @@
+'' =================================================================================================
+''
+''   File....... jm_1-wire_devices.spin2
+''   Purpose....
+''   Author..... Jon "JonnyMac" McPhalen
+''               Copyright (c) 2021 Jon McPhalen
+''               -- see below for terms of use
+''   E-mail..... jon.mcphalen@gmail.com
+''   Started....
+''   Updated.... 13 JAN 2021
+''
+''   {$P2}
+''
+'' =================================================================================================
+
+
+pub null()
+
+'' This is not a top-level object
+
+
+pub name(fcode) : p_str | idx
+
+  idx := find_index(fcode)                                      ' get index for family code
+
+  if (idx < 0)                                                  ' not found?
+    p_str := @Unknown
+  else
+    p_str := @DevName                                           ' point to names list
+    repeat idx                                                  ' advance to name at idx
+      p_str += strsize(p_str) + 1
+
+
+pub description(fcode) : p_str | idx
+
+  idx := find_index(fcode)
+
+  if (idx < 0)
+    p_str := @Unknown
+  else
+    p_str := @DevDesc
+    repeat idx
+      p_str += strsize(p_str) + 1
+
+
+pri find_index(target) : result | idx
+
+  repeat idx from 0 to DevCount-1                               ' loop through devices
+    if (target == Code[idx])                                    ' found
+      return idx                                                '  yes, return index
+
+  return -1                                                     ' not found
+
+
+dat
+
+  DevCount      byte      32                                    ' known devices
+
+  Code          byte      $01, $02, $04, $05, $06, $08, $09, $0A
+                byte      $0B, $0C, $0F, $10, $12, $14, $1A, $1C
+                byte      $1D, $1F, $20, $21, $23, $24, $27, $28
+                byte      $29, $2C, $2D, $37, $3A, $41, $42, $43
+
+  DevName       byte      "(DS1990A), (DS1990R), DS2401, DS2411", 0
+                byte      "(DS1991)", 0
+                byte      "(DS1994), DS2404", 0
+                byte      "DS2405", 0
+                byte      "(DS1993)", 0
+                byte      "(DS1992)", 0
+                byte      "(DS1982), DS2502", 0
+                byte      "(DS1995)", 0
+                byte      "(DS1985), DS2505", 0
+                byte      "(DS1996)", 0
+                byte      "(DS1986), DS2506", 0
+                byte      "(DS1920)", 0
+                byte      "DS2406, DS2407", 0
+                byte      "(DS1971), DS2430A", 0
+                byte      "(DS1963L)", 0
+                byte      "DS28E04-100", 0
+                byte      "DS2423", 0
+                byte      "DS2409", 0
+                byte      "DS2450", 0
+                byte      "(DS1921G), (DS1921H), (DS1921Z)", 0
+                byte      "(DS1973), DS2433", 0
+                byte      "(DS1904), DS2415", 0
+                byte      "DS2417", 0
+                byte      "DS18B20", 0
+                byte      "DS2408", 0
+                byte      "DS2890", 0
+                byte      "(DS1972), DS2431", 0
+                byte      "(DS1977)", 0
+                byte      "(DS2413)", 0
+                byte      "(DS1922L), (DS1922T), (DS1923), DS2422", 0
+                byte      "DS28EA00", 0
+                byte      "DS28EC20", 0
+
+  DevDesc       byte      "Silicon Serial Number", 0
+                byte      "MultiKey iButton", 0
+                byte      "4kb Plus Time Memory", 0
+                byte      "Addressable Switch", 0
+                byte      "4Kb NV Memory", 0
+                byte      "1Kb NV Memory", 0
+                byte      "1Kb EPROM Memory", 0
+                byte      "16Kb NV Memory", 0
+                byte      "16Kb Add-Only Memory", 0
+                byte      "64Kb Memory iButton", 0
+                byte      "64Kb Add-Only Memory", 0
+                byte      "Temperature iButton", 0
+                byte      "Dual Addressable Switch with 1Kb Memory", 0
+                byte      "256-Bit EEPROM", 0
+                byte      "4Kb Monetary iButton", 0
+                byte      "4Kb Addressable EEPROM with PIO", 0
+                byte      "4Kb RAM with Counter", 0
+                byte      "MicroLAN Coupler", 0
+                byte      "Quad A/D Converter", 0
+                byte      "Thermochron iButton Device", 0
+                byte      "4Kb EEPROM", 0
+                byte      "RTC", 0
+                byte      "RTC with Interrupt", 0
+                byte      "Programmable Resolution Digital Thermometer", 0
+                byte      "8-Channel Addressable Switch", 0
+                byte      "Digital Potentiometer", 0
+                byte      "1Kb EEPROM", 0
+                byte      "32KB EEPROM", 0
+                byte      "2-Channel Addressable Switch", 0
+                byte      "Temperature Logger with 8KB Memory", 0
+                byte      "Digital Thermometer with Sequence Detect and PIO", 0
+                byte      "20Kb EEPROM", 0
+
+  Unknown       byte      "Unknown", 0
+
+
+con { license }
+
+{{
+
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+}}
