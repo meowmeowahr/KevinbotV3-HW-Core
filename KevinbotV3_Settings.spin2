@@ -42,6 +42,9 @@ con { Kevinbot v3 Constant Settings }
   ENABLE_RSL    = true                                                          ' Enable robot status light
   RSL_RATE      = 750                                                           ' Pulse/update rate of rsl
 
+  '' Status buzzer
+  START_SOUND   = true                                                          ' Enable startup beeps default=true
+
   '' Display
   ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true
   LCD_ADDR      = %111                                                          ' LCD I2C address default=%111

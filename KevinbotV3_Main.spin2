@@ -247,6 +247,15 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
     ' lcd init failed
     core_status := S_LCD_INIT_FAIL
 
+  if sett.START_SOUND
+    tone(50, 1000)
+    waitms(100)
+    tone(40, 1500)
+    waitms(100)
+    tone(50, 1700)
+    waitms(100)
+    tone(0, 1000)
+
   ' Cogs
   sensor_cog_id := cogspin(newcog, sensor_loop, @sensor_stack)
   rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
