@@ -44,6 +44,7 @@ con { Kevinbot v3 Constant Settings }
 
   '' Status buzzer
   START_SOUND   = true                                                          ' Enable startup beeps default=true
+  BUZZER_SPEED  = 100                                                           ' Buzzer pdate speed. Control error beep speed. Typical tone will take 5x this in ms. default=100
 
   '' Display
   ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true

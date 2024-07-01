@@ -168,6 +168,7 @@ obj
   bt_tm : "jm_ez_timer"                                                         '   BMS update timer
   ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
   dp_tm : "jm_ez_timer"                                                         '   Display update timer
+  bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
@@ -226,7 +227,7 @@ var { globals }
   byte lcd_previous_page
 
 
-pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
+pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string, buzzer_state, buzzer_active
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -309,12 +310,12 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
 
     ' Update rsl
     if sett.ENABLE_RSL
-      if robot_enabled == 0
+      if (not core_status == S_OK) or (link_status == L_NO_LINK)
+        rsl.set_state(0)
+      elseif robot_enabled == 0
         rsl.set_state(1)
       elseif robot_enabled == 1
         rsl.set_state(2)
-      else
-        rsl.set_state(0)
 
       rsl.update()
 
@@ -370,8 +371,6 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
 
     else
       '' Non-critical tasks
-      if buzzer_end_time < getms()
-        beep.write(0)
 
       '' LCD Updates / Tick
 
@@ -450,6 +449,22 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string
             if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
               lcd_icon_update_time := getms()
               disp.display_status_icon(disp.CC_ERROR)
+
+      buzzer_active := not core_status == S_OK
+      if (buzzer_active) and (bz_tm.millis() > sett.BUZZER_SPEED)
+        bz_tm.start()
+
+        if buzzer_state == 0
+          tone(50, 1000)
+        elseif buzzer_state == 1
+          tone(75, 1500)
+        elseif buzzer_state == 2
+          tone(50, 600)
+        elseif buzzer_state > 2
+          buzzer_state := -1
+        buzzer_state += 1
+      elseif buzzer_active == 0
+        beep.write(0)
 
 
 pub emergency_stop()
