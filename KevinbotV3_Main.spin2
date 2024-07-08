@@ -296,6 +296,7 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
                   ' b2_str := nstr.dpdec(batt_2_voltage, 1)
                   ' str.sprintf2(@lcd_buffer, string("B1:%s B2:%s"), b1_str, b2_str)
                   ' disp.display_line(1, @lcd_buffer)
+                  disp.clear_line(1)
                   disp.crsr_xy(0, 1)
                   disp.str(string("B1:"))
                   disp.str(nstr.dpdec(batt_1_voltage, 1))
@@ -749,7 +750,7 @@ pub setup()
 
   ' Display
   if sett.ENABLE_LCD
-    lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5)
+    lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.LCD_LINES, sett.LCD_WIDTH)
   else
     lcd_init_status := 1
 

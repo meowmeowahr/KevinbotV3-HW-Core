@@ -45,25 +45,32 @@ var
   byte  running
   byte  lcd_icon
 
+  byte width
+  byte height
+
 
 pub null()
 
 '' This is not a top level object
 
 
-pub start(address, scl, sda, khz, pullup) : output
+pub start(address, scl, sda, khz, pullup, lines, wide) : output
 
 '' Start thermometers
 '' -- address.... i2c Address of PCF-based lcd display
 '' -- scl and sda define i2c bus
 '' -- khz is bus speed, typically 100
 '' -- pullup is high level drive configuration
+'' -- wide is the line length of the lcd
+'' -- lines is the number of lines on the lcd
 
   output := lcd.start(address, scl, sda, khz, pullup)
   lcd.set_char(CC_CHECK, @CheckMark)
   lcd.set_char(CC_REFRESH_1, @Refresh1)
   lcd.set_char(CC_REFRESH_2, @Refresh2)
   lcd.set_char(CC_ERROR, @Error)
+
+  width, height := wide, lines
 
 
 pub display_main_lines(p_line0, p_line1)
@@ -72,11 +79,20 @@ pub display_main_lines(p_line0, p_line1)
   display_line(1, p_line1)
 
 
-pub display_line(line, p_line)
+pub display_line(line, p_line) | tmp
+
+  bytefill(tmp, " ", width)
+  bytemove(tmp, p_line, strsize(p_line))
 
   lcd.crsr_xy(0, line)
-  lcd.str(p_line)
+  lcd.str(tmp)
 
+
+pub clear_line(line) | tmp
+
+  bytefill(tmp, " ", width)
+  lcd.crsr_xy(0, line)
+  lcd.str(tmp)
 
 pub str(p_str)
 
