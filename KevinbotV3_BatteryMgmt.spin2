@@ -36,13 +36,15 @@ var
   long  hv_2
   long  lv_2
 
+  word  cal
+
 
 pub null()
 
 '' This is not a top level object
 
 
-pub start(config, b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2)
+pub start(config, b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2, calib)
 
 '' Start battery Management System
 '' -- config..... BMS Operation mode
@@ -52,9 +54,15 @@ pub start(config, b1_pin, b2_pin, hi_volt_1, low_volt_1, hi_volt_2, low_volt_2)
 '' -- low_volt_1. Under-Voltage for meter #1 (multiplied by 10)
 '' -- hi_volt_2.. Over-Voltage for meter #2 (multiplied by 10)
 '' -- low_volt_2. Under-Voltage for meter #2 (multiplied by 10)
+'' -- cal........ Voltage x10 at the input of voltage divider that creates 3.3v on the output
+'' -- EXAMPLE.... IN - 100K - 10K - GND
+''                          |
+''                         OUT
+'' cal = 330
 
   mode := config
   hv_1, lv_1, hv_2, lv_2 := hi_volt_1, low_volt_1, hi_volt_2, low_volt_2
+  cal := calib
 
   volt1.start(b1_pin, 0, 1000)                                                  ' configure analog input for voltage
   volt2.start(b2_pin, 0, 1000)                                                  ' configure analog input for voltage
@@ -73,14 +81,26 @@ pub get_voltages() : voltage_1, voltage_2 | level_1, level_2
   level_2 := volt2.read()
   case mode
     M_OFF: voltage_1 := -1
-    other: voltage_1 := util.map(level_1, 0, 1000, 0, 358)
+    other: voltage_1 := util.map(level_1, 0, 1000, 0, cal)
   case mode
-    M_V12_V12: voltage_2 := util.map(level_2, 0, 1000, 0, 358)
-    M_V12_V24: voltage_2 := util.map(level_2, 0, 1000, 0, 358) - voltage_1
-    M_V12_V18: voltage_2 := util.map(level_2, 0, 1000, 0, 358)
+    M_V12_V12: voltage_2 := util.map(level_2, 0, 1000, 0, cal)
+    M_V12_V24: voltage_2 := util.map(level_2, 0, 1000, 0, cal) - voltage_1
+    M_V12_V18: voltage_2 := util.map(level_2, 0, 1000, 0, cal)
     other: voltage_2 := -1
 
   return voltage_1, voltage_2
+
+
+pub get_count() : ct
+
+'' Get number of batteries in system
+
+  case mode
+    M_OFF: return 0
+    M_V12, M_V24: return 1
+    M_V12_V12, M_V12_V18, M_V12_V24: return 2
+    other: return -1
+
 
 pub get_statuses() : status_1, status_2 | voltage_1, voltage_2
 
@@ -129,8 +149,8 @@ pub get_raw_voltages() : voltage_1, voltage_2 | level_1, level_2
 
   level_1 := volt1.read()
   level_2 := volt2.read()
-  voltage_1 := util.map(level_1, 0, 1000, 0, 358)
-  voltage_2 := util.map(level_2, 0, 1000, 0, 358)
+  voltage_1 := util.map(level_1, 0, 1000, 0, cal)
+  voltage_2 := util.map(level_2, 0, 1000, 0, cal)
 
   return voltage_1, voltage_2
 

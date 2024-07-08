@@ -54,12 +54,16 @@ con { Kevinbot v3 Constant Settings }
 
   LCD_ICON_SPD  = 500                                                           ' Time to refresh lcd status icon default=500
 
+  LCD_BATT_MAIN = true                                                          ' Show battery status on home page. Only applies to under 3 line lcds. default=true
+
   '' Battery
   B1_LOW_VOLT   = 116                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #1 default=116
   B1_HIGH_VOLT  = 142                                                           ' Over-voltage multiplied by 10 for Battery Sensor #1 default=142
 
   B2_LOW_VOLT   = 170                                                           ' Cutoff voltage multiplied by 10 for Battery Sensor #2 default=170
   B2_HIGH_VOLT  = 220                                                           ' Over-voltage multiplied by 10 for Battery Sensor #2 default=220
+
+  BMS_CALIB     = 358                                                           ' Voltage x10 at the input of the voltage divider that produces 3.3v at the output  default=330
 
   BMS_MODE      = batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V18
 

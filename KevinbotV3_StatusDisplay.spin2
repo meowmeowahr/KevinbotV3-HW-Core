@@ -68,10 +68,30 @@ pub start(address, scl, sda, khz, pullup) : output
 
 pub display_main_lines(p_line0, p_line1)
 
-  lcd.crsr_home()
-  lcd.str(p_line0)
-  lcd.line(1)
-  lcd.str(p_line1)
+  display_line(0, p_line0)
+  display_line(1, p_line1)
+
+
+pub display_line(line, p_line)
+
+  lcd.crsr_xy(0, line)
+  lcd.str(p_line)
+
+
+pub str(p_str)
+
+'' Print z-string
+'  -- borrowed from FullDuplexSerial
+
+  lcd.str(p_str)
+
+
+pub crsr_xy(x, y)
+
+'' Moves DDRAM cursor to column, row position
+'' -- home position is indexed as 0, 0
+
+  lcd.crsr_xy(x, y)
 
 
 pub display_status_icon(icon)

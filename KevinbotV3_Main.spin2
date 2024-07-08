@@ -159,6 +159,7 @@ obj
 
   util  : "ka_utils"                                                            '   Misc utility methods
   str   : "string"                                                              '   String utilities
+  nstr  : "jm_nstr"                                                             '   String utilities (number-to-str)
 
   beep  : "jm_pwm"                                                              '   error buzzer pwm
   rsl   : "KevinbotV3_StatusLight"                                              '   status light
@@ -227,7 +228,7 @@ var { globals }
   byte lcd_previous_page
 
 
-pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string, buzzer_state, buzzer_active
+pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -285,6 +286,21 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string, buzzer_state
       sys.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
       sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
       sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+
+      if sett.ENABLE_LCD and sett.LCD_LINES < 3
+          if lcd_page == DP_HOME
+            if sett.LCD_BATT_MAIN
+              case batt.get_count()
+                2:
+                  ' b1_str := nstr.dpdec(batt_1_voltage, 1)
+                  ' b2_str := nstr.dpdec(batt_2_voltage, 1)
+                  ' str.sprintf2(@lcd_buffer, string("B1:%s B2:%s"), b1_str, b2_str)
+                  ' disp.display_line(1, @lcd_buffer)
+                  disp.crsr_xy(0, 1)
+                  disp.str(string("B1:"))
+                  disp.str(nstr.dpdec(batt_1_voltage, 1))
+                  disp.str(string(" B2:"))
+                  disp.str(nstr.dpdec(batt_2_voltage, 1))
 
       if sett.BATT_ERRORS
         if (batt_1_status == batt.S_UNDER) and (batt_2_status == batt.S_UNDER)
@@ -387,10 +403,11 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string, buzzer_state
           lcd_page := DP_HOME
 
       ' if error, set lcd icon
-      case core_status
-        S_OK:
+      if (link_status == L_LINK_WAIT) or (lcd_page == DP_WAIT)
+          lcd_icon := I_LINK
+      elseif core_status == S_OK
           lcd_icon := I_CHECK
-        other:
+      else
           lcd_icon := I_ERROR
 
       ' system tick errors / display
@@ -413,14 +430,15 @@ pub main() | b1, b2, index, lcd_previous_enabled, lcd_error_string, buzzer_state
               disp.display_main_lines(@DisplayWaitingLine0, @DisplayWaitingLine1)
             elseif lcd_page == DP_HOME
               if robot_enabled
-                disp.display_main_lines(@DisplayHomeEnaLine0, "")
+                disp.display_line(0, @DisplayHomeEnaLine0)
               else
-                disp.display_main_lines(@DisplayHomeDisLine0, "")
+                disp.display_line(0, @DisplayHomeDisLine0)
+
             elseif lcd_page == DP_ERROR
-              bytefill(@lcd_error_string, 0, strsize(@lcd_error_string))
-              str.append(@lcd_error_string, @DisplayErrorLine1)
-              str.append(@lcd_error_string, str.dec(core_status))
-              disp.display_main_lines(@DisplayErrorLine0, @lcd_error_string)
+              bytefill(@lcd_buffer, 0, strsize(@lcd_buffer))
+              str.append(@lcd_buffer, @DisplayErrorLine1)
+              str.append(@lcd_buffer, str.dec(core_status))
+              disp.display_main_lines(@DisplayErrorLine0, @lcd_buffer)
             dp_tm.start()
             lcd_previous_icon := lcd_icon
             lcd_previous_page := lcd_page
@@ -727,7 +745,7 @@ pub setup()
   sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
 
   ' Voltmeter
-  batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT)
+  batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT, sett.BMS_CALIB)
 
   ' Display
   if sett.ENABLE_LCD
