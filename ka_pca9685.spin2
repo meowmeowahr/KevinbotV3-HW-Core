@@ -3,10 +3,10 @@
 ''   File....... ka_pca9685.spin2
 ''   Purpose.... I2C 16-channel LED/Servo controller
 ''   Author..... Kevin Ahr
-''               Copyright (C) 2022 Kevin Ahr
+''               Copyright (C) 2022 - 2024 Kevin Ahr
 ''               -- see below for terms of use
 ''   Started....
-''   Updated.... 28 MAY 2022
+''   Updated.... 31 JUL 2024
 ''
 '' =================================================================================================
 
@@ -55,7 +55,6 @@ con { pca registers }
   MODE1_SUB3_ENABLE          = $02
   MODE1_ALLCALL_ENABLE       = $01
 
-
   MODE2_INVRT_ENABLE         = $10
   MODE2_INVRT_NOT            = $00
   MODE2_OUTCHANGE_ON_STOP    = $00
@@ -65,8 +64,6 @@ con { pca registers }
   MODE2_OUTNE_HIGH_IMPEDANCE = $02
   MODE2_OUTNE_WHEN_OUTDRV    = $01
   MODE2_OUTNE_NOT_ENABLED    = $00
-
-
 
 
 con
@@ -89,7 +86,6 @@ obj
 var
 
   byte  devid                                                   ' device id
-
   byte  freq                                                    ' pca frequency (hz)
 
 
@@ -141,6 +137,7 @@ pub is_connected() : result
 
   return (i2c.present(devid))
 
+
 pub set_all_pwm(on, off)
 
 '' Sets all PWM channels
@@ -149,12 +146,14 @@ pub set_all_pwm(on, off)
   write_register(ALL_LED_OFF_L, off & $FF)
   write_register(ALL_LED_OFF_H, off >> 8)
 
+
 pub set_pwm(channel, on, off)
 '' Sets a single PWM channel
   write_register(LED0_ON_L+4*channel, on & $FF)
   write_register(LED0_ON_H+4*channel, on >> 8)
   write_register(LED0_OFF_L+4*channel, off & $FF)
   write_register(LED0_OFF_H+4*channel, off >> 8)
+
 
 pub set_pwm_freq(freq_hz) | prescaleval, presc, oldmode, newmode, fhz
 
@@ -169,9 +168,16 @@ pub set_pwm_freq(freq_hz) | prescaleval, presc, oldmode, newmode, fhz
   waitms(5)
   write_register(MODE1, oldmode | $80)
 
+
 pub set_us(channel, us)
 
   set_pwm(channel, 0, us/4)
+
+
+pub set_all_us(us)
+
+  set_all_pwm(0, us/4)
+
 
 pub read_freq() : f
 

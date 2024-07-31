@@ -135,9 +135,12 @@ Commands
                         byte    "system.enabled"        , 0
                         byte    "system.estop"          , 0
                         byte    "servo.set"             , 0
+                        byte    "servo.setraw"          , 0
+                        byte    "servo.all"             , 0
+                        byte    "servo.allraw"          , 0
                         byte    0
 
-NumCmds                 byte    13
+NumCmds                 byte    16
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -391,7 +394,16 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
           robot_enabled := 2
           core_status := S_ESTOP
           emergency_stop()
-
+        13:                                                                     ' servo.set
+          util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+          svo.set_position(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+        14:                                                                     ' servo.setraw
+          util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+          svo.set_position_us(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+        15:                                                                     ' servo.all
+          svo.set_all_position(str.atoi(@rxValueBuffer))
+        16:                                                                     ' servo.allraw
+          svo.set_all_position_us(str.atoi(@rxValueBuffer))
 
     else
       '' Non-critical tasks

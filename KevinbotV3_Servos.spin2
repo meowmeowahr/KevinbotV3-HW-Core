@@ -13,17 +13,9 @@
 
 obj
 
-' main                                                          ' * master Spin cog
   pcaa : "ka_pca9685"                                           '   pca9685
   pcab : "ka_pca9685"                                           '   pca9685
-
-' * uses cog when loaded
-
-
-dat { pre-initialized }
-
-
-var { globals }
+  util : "ka_utils"                                             '   misc utils
 
 
 pub null()
@@ -37,6 +29,33 @@ pub start(addr1, addr2, sclpin, sdapin, khz) : result | ra, rb
   ra := pcaa.startx(sclpin, sdapin, 100, addr1, pcaa.PU_1K5)
   rb := pcab.startx(sclpin, sdapin, 100, addr2, pcab.PU_1K5)
   return ra && rb
+
+
+pub set_position_us(index, value)
+
+  if index < 16
+    pcaa.set_us(index, value)
+  else
+    pcab.set_us(index-16, value)
+
+
+pub set_position(index, degrees)
+
+  if index < 16
+    pcaa.set_us(index, util.map(degrees, 0, 180, 1000, 2000))
+  else
+    pcab.set_us(index-16, util.map(degrees, 0, 180, 1000, 2000))
+
+
+pub set_all_position_us(value)
+
+  pcaa.set_all_us(value)
+
+
+pub set_all_position(degrees)
+
+  pcaa.set_all_us(util.map(degrees, 0, 180, 1000, 2000))
+
 
 con { license }
 
