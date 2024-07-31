@@ -126,7 +126,7 @@ Commands
                         byte    "core.pint"             , 0
                         byte    "core.pinf"             , 0
                         byte    "core.tone"             , 0
-                        byte    "system.tick"           , 0
+                        byte    "core.tick"           , 0
                         byte    "core.errors.clear"     , 0
                         byte    "core.link.unlink"      , 0
                         byte    "connection.isready"    , 0
@@ -156,6 +156,7 @@ obj
 
   batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
+  svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
 
   util  : "ka_utils"                                                            '   Misc utility methods
   str   : "string"                                                              '   String utilities
@@ -201,6 +202,7 @@ var { globals }
   byte  term_cog_id
   byte  sys_serial_cog_id
   byte  lcd_init_status
+  byte  servo_init_status
 
   '' Batteries
   long  batt_1_voltage
@@ -753,6 +755,10 @@ pub setup()
     lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.LCD_LINES, sett.LCD_WIDTH)
   else
     lcd_init_status := 1
+
+  ' Servos
+  ' if sett.ENABLE_PCA
+  servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
 
   ' Status light
   if sett.ENABLE_RSL
