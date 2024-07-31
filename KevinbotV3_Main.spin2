@@ -51,8 +51,9 @@ con
   #true,  ON, OFF
   #false, NO, YES
 
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_TICK_FAIL, ...
-      S_QUEUE_OVERRUN, S_ESTOP, S_BATT1_UV, S_BATT1_OV, S_BATT2_UV, S_BATT2_OV, S_BATT_UV, S_BATT_OV
+  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_PCA_INIT_FAIL, ...
+      S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP, ...
+      S_BATT1_UV, S_BATT1_OV, S_BATT2_UV, S_BATT2_OV, S_BATT_UV, S_BATT_OV
 
   #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
   #0, I_OFF, I_LINK, I_CHECK, I_ERROR
@@ -126,16 +127,17 @@ Commands
                         byte    "core.pint"             , 0
                         byte    "core.pinf"             , 0
                         byte    "core.tone"             , 0
-                        byte    "core.tick"           , 0
+                        byte    "core.tick"             , 0
                         byte    "core.errors.clear"     , 0
                         byte    "core.link.unlink"      , 0
                         byte    "connection.isready"    , 0
                         byte    "connection.ok"         , 0
                         byte    "system.enabled"        , 0
                         byte    "system.estop"          , 0
+                        byte    "servo.set"             , 0
                         byte    0
 
-NumCmds                 byte    12
+NumCmds                 byte    13
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -205,10 +207,10 @@ var { globals }
   byte  servo_init_status
 
   '' Batteries
-  long  batt_1_voltage
-  long  batt_2_voltage
-  long  batt_meter_1_voltage
-  long  batt_meter_2_voltage
+  word  batt_1_voltage
+  word  batt_2_voltage
+  word  batt_meter_1_voltage
+  word  batt_meter_2_voltage
   byte  batt_1_status
   byte  batt_2_status
 
@@ -250,6 +252,9 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
   if lcd_init_status == 0
     ' lcd init failed
     core_status := S_LCD_INIT_FAIL
+
+  if servo_init_status == 0
+    core_status := S_PCA_INIT_FAIL
 
   if sett.START_SOUND
     tone(50, 1000)
@@ -757,8 +762,8 @@ pub setup()
     lcd_init_status := 1
 
   ' Servos
-  ' if sett.ENABLE_PCA
-  servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
+  if sett.ENABLE_PCA
+    servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
 
   ' Status light
   if sett.ENABLE_RSL
