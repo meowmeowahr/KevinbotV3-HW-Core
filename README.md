@@ -17,6 +17,10 @@ The code for the Kevinbot v3 Sub-Board
 | jm_nstr.spin2             | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_pcf8574.spin2          | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_pwm.spin2              | Jon "JonnyMac" McPhalen    | MIT     |
+| jm_rgbx_pixel.spin2       | Jon "JonnyMac" McPhalen    | MIT     |
+| jm_gamma8.spin2           | Jon "JonnyMac" McPhalen    | MIT     |
 | string.spin2              | Jesse Burt                 | MIT     |
+| string.float.spin2        | Jesse Burt                 | MIT     |
 | termcodes.spin2h          | Jesse Burt                 | MIT     |
 | char.type.spin2h          | Jesse Burt                 | MIT     |
+| math.float.nocog.spin2    | Chip Gracey                | MIT     |

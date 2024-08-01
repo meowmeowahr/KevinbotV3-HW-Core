@@ -79,6 +79,34 @@ con { Kevinbot v3 Constant Settings }
   '' One-Wire
   OWX_ERRORS    = false                                                         ' Enable One-Wire Errors (shorted, dnf, etc) if true, errors will cause system disable, else errors are ignored default=true
 
+  '' Leds
+  ENABLE_LEDS   = true
+  HEAD_LEDS     = 34                                                             ' number of leds in head
+  BODY_LEDS     = 150                                                             ' number of leds in body
+  CAM_LEDS      = 16                                                             ' number of leds in camera ring
+  BASE_LEDS     = 100                                                             ' number of leds in base
+  TOTAL_LEDS    = HEAD_LEDS+BODY_LEDS+CAM_LEDS+BASE_LEDS                        ' total leds in whole robot
+  LEDS_TYPE     = leds.TYPE_2812B                                               ' led strip type, not interchangable
+
+  S_LIGHT_UPDATE_HEAD = 200
+  S_LIGHT_UPDATE_BODY = 200
+  S_LIGHT_UPDATE_BASE = 200
+
+  S_BODY_BRIGHTNESS = 120
+  BODY_MAX          = 250
+  BODY_MIN          = 10
+  BODY_INC          = 20
+
+  S_BASE_BRIGHTNESS = 120
+  BASE_MAX          = 250
+  BASE_MIN          = 10
+  BASE_INC          = 20
+
+  S_HEAD_EFFECT     = 1
+  S_BODY_EFFECT     = 1
+  S_BASE_EFFECT     = 1
+
+
 dat { Kevinbot v3 Constant Settings }
 
 ' DS18b20 serial numbers
@@ -95,6 +123,7 @@ dat { Kevinbot v3 Constant Settings }
 obj
 
   batt  : "KevinbotV3_BatteryMgmt"                                              ' Kevinbot v3 Voltmeters and Battery Management
+  leds  : "KevinbotV3_LedConsts"                                                 ' Kevinbot v3 Lighting (for constants)
 
 
 pub null()

@@ -138,9 +138,24 @@ Commands
                         byte    "servo.setraw"          , 0
                         byte    "servo.all"             , 0
                         byte    "servo.allraw"          , 0
+                        byte    "lighting.head.effect"  , 0
+                        byte    "lighting.head.color1"  , 0
+                        byte    "lighting.head.color2"  , 0
+                        byte    "lighting.head.update"  , 0
+                        byte    "lighting.head.bright"  , 0
+                        byte    "lighting.body.effect"  , 0
+                        byte    "lighting.body.color1"  , 0
+                        byte    "lighting.body.color2"  , 0
+                        byte    "lighting.body.update"  , 0
+                        byte    "lighting.body.bright"  , 0
+                        byte    "lighting.base.effect"  , 0
+                        byte    "lighting.base.color1"  , 0
+                        byte    "lighting.base.color2"  , 0
+                        byte    "lighting.base.update"  , 0
+                        byte    "lighting.base.bright"  , 0
                         byte    0
 
-NumCmds                 byte    16
+NumCmds                 byte    31
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -152,6 +167,55 @@ rxSubVal1Buffer         byte    0[sett.RX_MAX_SUBVAL]
 rxSubVal2Buffer         byte    0[sett.RX_MAX_SUBVAL]
 rxSubVal3Buffer         byte    0[sett.RX_MAX_SUBVAL]
 
+dat
+
+  NumHead       byte    6                                       ' number of commands in table
+
+  HeadEffMult   byte    0, 0, 500, 10, 200, 200                 ' effect speed multiplier
+
+  HeadEffects
+                byte    "color1"         , 0
+                byte    "color2"         , 0
+                byte    "flash"          , 0
+                byte    "fade"           , 0
+                byte    "jump3"          , 0
+                byte    "twinkle"        , 0
+                byte    0
+
+  NumBody       byte    10                                      ' number of commands in table
+
+  BodyEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
+
+  BodyEffects
+                byte    "color1"         , 0
+                byte    "color2"         , 0
+                byte    "flash"          , 0
+                byte    "fade"           , 0
+                byte    "jump3"          , 0
+                byte    "twinkle"        , 0
+                byte    "swipe"          , 0
+                byte    "rainbow"        , 0
+                byte    "magic"          , 0
+                byte    "fire"           , 0
+                byte    0
+
+  NumBase       byte    10                                      ' number of commands in table
+
+  BaseEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
+
+  BaseEffects
+                byte    "color1"         , 0
+                byte    "color2"         , 0
+                byte    "flash"          , 0
+                byte    "fade"           , 0
+                byte    "jump3"          , 0
+                byte    "twinkle"        , 0
+                byte    "swipe"          , 0
+                byte    "rainbow"        , 0
+                byte    "magic"          , 0
+                byte    "fire"           , 0
+                byte    0
+
 obj
 
 ' main                                                                          ' * master Spin cog
@@ -162,6 +226,7 @@ obj
   batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
   svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
+  leds  : "KevinbotV3_Lighting"                                                 ' * Kevinbot v3 Lighting
 
   util  : "ka_utils"                                                            '   Misc utility methods
   str   : "string"                                                              '   String utilities
@@ -176,6 +241,9 @@ obj
   ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
   dp_tm : "jm_ez_timer"                                                         '   Display update timer
   bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
+  l1_tm : "jm_ez_timer"                                                         '   Led timer
+  l2_tm : "jm_ez_timer"                                                         '   Led timer
+  l3_tm : "jm_ez_timer"                                                         '   Led timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
@@ -234,6 +302,26 @@ var { globals }
   byte lcd_previous_icon
   byte lcd_previous_page
 
+  '' Leds
+  long  head_color1
+  long  head_color2
+  byte  head_effect
+  byte  head_bright
+
+  long  body_color1
+  long  body_color2
+  byte  body_effect
+  byte  body_bright
+
+  long  base_color1
+  long  base_color2
+  byte  base_effect
+  byte  base_bright
+
+  long  light_update_head
+  long  light_update_body
+  long  light_update_base
+
 
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active
 
@@ -244,6 +332,14 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
   lcd_previous_enabled := false
   robot_enabled := false
   handshake_requested := false
+
+  light_update_head, light_update_body, head_effect, body_effect := sett.S_LIGHT_UPDATE_HEAD, sett.S_LIGHT_UPDATE_BODY, sett.S_HEAD_EFFECT, sett.S_BODY_EFFECT
+  light_update_base, base_effect := sett.S_LIGHT_UPDATE_BASE, sett.S_BASE_EFFECT
+  body_bright, base_bright := sett.S_BODY_BRIGHTNESS, sett.S_BASE_BRIGHTNESS
+
+  head_effect := 1
+  head_color1 := $00_FF_00_00
+
 
   setup()
 
@@ -346,6 +442,59 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
 
       rsl.update()
 
+    if l1_tm.millis() >= (light_update_head * byte[@HeadEffMult][head_effect-1]) / 100
+        l1_tm.start()
+        case head_effect
+          3:
+            leds.flash_head(head_color1, head_color2)
+          5:
+            leds.jump3_head()
+          4:
+            leds.fade_head(head_color1, head_color2)
+          6:
+            leds.twinkle_head(head_color1)
+
+    if l2_tm.millis() >= (light_update_body * byte[@BodyEffMult][body_effect-1]) / 100
+      l2_tm.start()
+      case body_effect
+        3:
+          leds.flash_body(body_color1, body_color2)
+        5:
+          leds.jump3_body()
+        4:
+          leds.fade_body(body_color1, body_color2)
+        6:
+          leds.twinkle_body(body_color1)
+        7:
+          leds.swipe_body(body_color1, body_color2)
+        8:
+          leds.rainbow_cycle_body(body_bright)
+        9:
+          leds.magic_cycle_body(body_bright)
+        10:
+          leds.fire_cycle_body(body_bright)
+
+      if l3_tm.millis() >= (light_update_base * byte[@BaseEffMult][base_effect-1]) / 100
+        l3_tm.start()
+        case base_effect
+          3:
+            leds.flash_base(base_color1, base_color2)
+          5:
+            leds.jump3_base()
+          4:
+            leds.fade_base(base_color1, base_color2)
+          6:
+            leds.twinkle_base(base_color1)
+          7:
+            leds.swipe_base(base_color1, base_color2)
+          8:
+            leds.rainbow_cycle_base(base_bright)
+          9:
+            leds.magic_cycle_base(base_bright)
+          10:
+            leds.fire_cycle_base(base_bright)
+
+
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
@@ -405,6 +554,66 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
         16:                                                                     ' servo.allraw
           svo.set_all_position_us(str.atoi(@rxValueBuffer))
           last_system_tick := getms()                                           ' prevent system tick error
+        17:                                                                     ' lighting.head.effect
+            head_effect := cmd_index(@rxValueBuffer, @HeadEffects, NumHead)
+            if head_effect == 1
+              leds.fill_head(head_color1)
+            elseif head_effect == 2
+              leds.fill_head(head_color2)
+        18:                                                                     ' lighting.head.color1
+          head_color1 := util.hex2val(@rxValueBuffer)
+            if head_effect == 1
+              leds.fill_head(head_color1)
+          last_system_tick := getms()                                           ' prevent system tick error
+        19:                                                                     ' lighting.head.color2
+          head_color2 := util.hex2val(@rxValueBuffer)
+            if head_effect == 2
+              leds.fill_head(head_color2)
+          last_system_tick := getms()                                           ' prevent system tick error
+        20:                                                                     ' lighting.head.update
+          light_update_head := str.atoi(@rxValueBuffer)
+        21:                                                                     ' lighting.head.bright
+          head_bright := str.atoi(@rxValueBuffer)
+        22:                                                                     ' lighting.body.effect
+            body_effect := cmd_index(@rxValueBuffer, @BodyEffects, NumBody)
+            if body_effect == 1
+              leds.fill_body(body_color1)
+            elseif body_effect == 2
+              leds.fill_body(body_color2)
+        23:                                                                     ' lighting.body.color1
+          body_color1 := util.hex2val(@rxValueBuffer)
+            if body_effect == 1
+              leds.fill_body(body_color1)
+          last_system_tick := getms()                                           ' prevent system tick error
+        24:                                                                     ' lighting.body.color2
+          body_color2 := util.hex2val(@rxValueBuffer)
+            if body_effect == 2
+              leds.fill_body(body_color2)
+          last_system_tick := getms()                                           ' prevent system tick error
+        25:                                                                     ' lighting.body.update
+          light_update_body := str.atoi(@rxValueBuffer)
+        26:                                                                     ' lighting.body.bright
+          body_bright := str.atoi(@rxValueBuffer)
+        27:                                                                     ' lighting.base.effect
+            base_effect := cmd_index(@rxValueBuffer, @BaseEffects, NumBase)
+            if base_effect == 1
+              leds.fill_base(base_color1)
+            elseif base_effect == 2
+              leds.fill_base(base_color2)
+        28:                                                                     ' lighting.base.color1
+          base_color1 := util.hex2val(@rxValueBuffer)
+            if base_effect == 1
+              leds.fill_base(base_color1)
+          last_system_tick := getms()                                           ' prevent system tick error
+        29:                                                                     ' lighting.base.color2
+          base_color2 := util.hex2val(@rxValueBuffer)
+            if base_effect == 2
+              leds.fill_base(base_color2)
+          last_system_tick := getms()                                           ' prevent system tick error
+        30:                                                                     ' lighting.base.update
+          light_update_base := str.atoi(@rxValueBuffer)
+        31:                                                                     ' lighting.base.bright
+          base_bright := str.atoi(@rxValueBuffer)
 
     else
       '' Non-critical tasks
@@ -507,19 +716,28 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
 
 
 pub emergency_stop()
+'' Emergency stop as many functions as possible
+
+  ' kill cogs
   cogstop(rx_cog_id)
   cogstop(sensor_cog_id)
   cogstop(term_cog_id)
   cogstop(sys_serial_cog_id)
-  ' TODO: Motor kill here
+
+  ' TODO: Drivebase kill here
   svo.kill()
+
+  ' Turn off rsl
   if sett.ENABLE_RSL
     rsl.set_state(0)
+
+  ' lcd update
   if sett.ENABLE_LCD
     disp.display_status_icon(disp.CC_ERROR)
     disp.display_main_lines(@DisplayEstopLine0, @DisplayEstopLine1)
     disp.set_backlight(false)
 
+  ' infinite loop
   repeat
     waitct(0)
 
@@ -528,7 +746,7 @@ pub sensor_loop() | left, right, internal, owx_status
 
 '' Sensor update cog
 
-  ' DS18b20
+  ' DS18b20 bootup
   owx_status := temp.start(sett.get_left_motor_sn(), sett.get_right_motor_sn(), sett.get_internal_temp_sn(), pins.ONE_WIRE, temp.PU_1K5)
 
   if sett.OWX_ERRORS
@@ -545,6 +763,7 @@ pub sensor_loop() | left, right, internal, owx_status
 
   ds_tm.start()
 
+  ' tx data
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
       left, right, internal := temp.read_temps()
@@ -783,6 +1002,17 @@ pub setup()
   ' Status light
   if sett.ENABLE_RSL
     rsl.start(pins.RSL, sett.RSL_RATE)
+
+  ' Leds
+  if sett.ENABLE_LEDS
+    leds.start()
+    leds.fill_base($00_00_00_00)
+    leds.fill_body($00_00_00_00)
+    leds.fill_head($00_00_00_00)
+    leds.fill_cam($00_00_00_00)
+    l1_tm.start()
+    l2_tm.start()
+    l3_tm.start()
 
 
 pub wait_for_terminal(clear)

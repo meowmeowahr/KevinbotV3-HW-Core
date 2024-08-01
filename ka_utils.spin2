@@ -74,3 +74,30 @@ pub split_str3(str, sep, p_d0, p_d1, p_d2) | len, i, c, vn
           byte[p_d1][strsize(p_d1)] := c                        ' add char to d0, d1, etc
         else
           byte[p_d2][strsize(p_d2)] := c
+
+
+pub hex2val(p_src) : result | df, c
+
+'' Convert hex string to value
+
+  df := false
+
+  repeat
+    c := byte[p_src++]
+    if ((c >= "a") && (c <= "z"))                               ' if lower
+      c -= 32                                                   '  make upper
+    case c
+      " ", "=", "$" :
+        if (df)
+          quit
+
+      "0".."9" :
+        result := (result << 4) | (c - "0")
+        df := true
+
+      "A".."F" :
+        result := (result << 4) | (c - "A" + 10)
+        df := true
+
+      other :
+        quit
