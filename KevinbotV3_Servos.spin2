@@ -42,9 +42,9 @@ pub set_position_us(index, value)
 pub set_position(index, degrees)
 
   if index < 16
-    pcaa.set_us(index, util.map(degrees, 0, 180, 1000, 2000))
+    pcaa.set_us(index, util.map(degrees, 0, 180, 750, 2250))
   else
-    pcab.set_us(index-16, util.map(degrees, 0, 180, 1000, 2000))
+    pcab.set_us(index-16, util.map(degrees, 0, 180, 750, 2250))
 
 
 pub set_all_position_us(value)
@@ -54,7 +54,13 @@ pub set_all_position_us(value)
 
 pub set_all_position(degrees)
 
-  pcaa.set_all_us(util.map(degrees, 0, 180, 1000, 2000))
+  pcaa.set_all_us(util.map(degrees, 0, 180, 750, 2250))
+
+
+pub kill()
+
+  pcaa.set_all_pwm(0, 4096)
+  pcab.set_all_pwm(0, 4096)
 
 
 con { license }

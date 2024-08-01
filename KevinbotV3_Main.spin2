@@ -134,7 +134,7 @@ Commands
                         byte    "connection.ok"         , 0
                         byte    "system.enabled"        , 0
                         byte    "system.estop"          , 0
-                        byte    "servo.set"             , 0
+                        byte    "s"                     , 0
                         byte    "servo.setraw"          , 0
                         byte    "servo.all"             , 0
                         byte    "servo.allraw"          , 0
@@ -349,9 +349,6 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
-      term.str(@rxCmdBuffer)
-      term.tx(13)
-      term.tx(10)
       index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
       case index
         1: pinh(str.atoi(@rxValueBuffer))                                       ' core.pinh
@@ -397,13 +394,17 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
         13:                                                                     ' servo.set
           util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
           svo.set_position(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+          last_system_tick := getms()                                           ' prevent system tick error
         14:                                                                     ' servo.setraw
           util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
           svo.set_position_us(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+          last_system_tick := getms()                                           ' prevent system tick error
         15:                                                                     ' servo.all
           svo.set_all_position(str.atoi(@rxValueBuffer))
+          last_system_tick := getms()                                           ' prevent system tick error
         16:                                                                     ' servo.allraw
           svo.set_all_position_us(str.atoi(@rxValueBuffer))
+          last_system_tick := getms()                                           ' prevent system tick error
 
     else
       '' Non-critical tasks
@@ -511,6 +512,7 @@ pub emergency_stop()
   cogstop(term_cog_id)
   cogstop(sys_serial_cog_id)
   ' TODO: Motor kill here
+  svo.kill()
   if sett.ENABLE_RSL
     rsl.set_state(0)
   if sett.ENABLE_LCD
@@ -680,7 +682,8 @@ pri serial_enqueue_char(nChr) : bFailedStatus
             pRxByteHead := @serialRxBffr
     else
         bQueOverrun := TRUE ' signal that we lost incoming data!!!
-        core_status := S_QUEUE_OVERRUN
+        if sett.Q_OVERRUN_ERR
+          core_status := S_QUEUE_OVERRUN
         bFailedStatus := TRUE
 
 
