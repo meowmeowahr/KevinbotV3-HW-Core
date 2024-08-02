@@ -52,7 +52,8 @@ con
   #false, NO, YES
 
   #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_PCA_INIT_FAIL, ...
-      S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP, ...
+      S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP, S_BME_CHIP_ID, S_BME_CALIB_NVM, S_BME_CALIB_TP, ...
+      S_BME_CALIB_HUM, S_BME_THP, S_BME_MEAS_TIMEOUT, S_BME_NOT_NORMAL_MODE, ...
       S_BATT1_UV, S_BATT1_OV, S_BATT2_UV, S_BATT2_OV, S_BATT_UV, S_BATT_OV
 
   #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
@@ -153,9 +154,10 @@ Commands
                         byte    "lighting.base.color2"  , 0
                         byte    "lighting.base.update"  , 0
                         byte    "lighting.base.bright"  , 0
+                        byte    "lighting.cam.bright"   , 0
                         byte    0
 
-NumCmds                 byte    31
+NumCmds                 byte    32
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -227,6 +229,7 @@ obj
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
   svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
   leds  : "KevinbotV3_Lighting"                                                 ' * Kevinbot v3 Lighting
+  bme   : "bme280_I2C"                                                          '   BME280 i2c sensor
 
   util  : "ka_utils"                                                            '   Misc utility methods
   str   : "string"                                                              '   String utilities
@@ -241,6 +244,7 @@ obj
   ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
   dp_tm : "jm_ez_timer"                                                         '   Display update timer
   bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
+  bm_tm : "jm_ez_timer"                                                         '   bme update timer
   l1_tm : "jm_ez_timer"                                                         '   Led timer
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
@@ -323,7 +327,10 @@ var { globals }
   long  light_update_base
 
 
-pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z
+
+pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
+accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, ...
+bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -336,10 +343,6 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
   light_update_head, light_update_body, head_effect, body_effect := sett.S_LIGHT_UPDATE_HEAD, sett.S_LIGHT_UPDATE_BODY, sett.S_HEAD_EFFECT, sett.S_BODY_EFFECT
   light_update_base, base_effect := sett.S_LIGHT_UPDATE_BASE, sett.S_BASE_EFFECT
   body_bright, base_bright := sett.S_BODY_BRIGHTNESS, sett.S_BASE_BRIGHTNESS
-
-  head_effect := 1
-  head_color1 := $00_FF_00_00
-
 
   setup()
 
@@ -474,26 +477,47 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
         10:
           leds.fire_cycle_body(body_bright)
 
-      if l3_tm.millis() >= (light_update_base * byte[@BaseEffMult][base_effect-1]) / 100
-        l3_tm.start()
-        case base_effect
-          3:
-            leds.flash_base(base_color1, base_color2)
-          5:
-            leds.jump3_base()
-          4:
-            leds.fade_base(base_color1, base_color2)
-          6:
-            leds.twinkle_base(base_color1)
-          7:
-            leds.swipe_base(base_color1, base_color2)
-          8:
-            leds.rainbow_cycle_base(base_bright)
-          9:
-            leds.magic_cycle_base(base_bright)
-          10:
-            leds.fire_cycle_base(base_bright)
+    if l3_tm.millis() >= (light_update_base * byte[@BaseEffMult][base_effect-1]) / 100
+      l3_tm.start()
+      case base_effect
+        3:
+          leds.flash_base(base_color1, base_color2)
+        5:
+          leds.jump3_base()
+        4:
+          leds.fade_base(base_color1, base_color2)
+        6:
+          leds.twinkle_base(base_color1)
+        7:
+          leds.swipe_base(base_color1, base_color2)
+        8:
+          leds.rainbow_cycle_base(base_bright)
+        9:
+          leds.magic_cycle_base(base_bright)
+        10:
+          leds.fire_cycle_base(base_bright)
 
+
+    if bm_tm.millis() >= sett.BME_SPEED
+      bm_tm.start()
+      bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi := bme.periodic_measurement()
+      case bme_return
+        bme.ERROR_CHIP_ID:
+          core_status := S_BME_CHIP_ID
+        bme.ERROR_CALIB_NVM:
+          core_status := S_BME_CALIB_NVM
+        bme.ERROR_CALIB_TP:
+          core_status := S_BME_CALIB_TP
+        bme.ERROR_CALIB_HUM:
+          core_status := S_BME_CALIB_HUM
+        bme.ERROR_THP:
+          core_status := S_BME_THP
+        bme.ERROR_MEAS_TIMEOUT:
+          core_status := S_BME_MEAS_TIMEOUT
+        bme.ERROR_NOT_NORMAL_MODE:
+          core_status := S_BME_NOT_NORMAL_MODE
+
+      sys.fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
 
     if serial_queue_has_data()
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
@@ -614,6 +638,9 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
           light_update_base := str.atoi(@rxValueBuffer)
         31:                                                                     ' lighting.base.bright
           base_bright := str.atoi(@rxValueBuffer)
+        32:                                                                     ' lighting.base.color1
+          leds.fill_camx(sett.CAM_COLOR, str.atoi(@rxValueBuffer))
+          last_system_tick := getms()
 
     else
       '' Non-critical tasks
@@ -1019,6 +1046,11 @@ pub setup()
     l1_tm.start()
     l2_tm.start()
     l3_tm.start()
+
+  ' bme
+  if sett.ENABLE_BME
+    bme.setup(pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.BME_ADDR)
+    bme.sensor_config(bme.CONFIG_NAV_MODE)
 
 pub wait_for_terminal(clear)
 

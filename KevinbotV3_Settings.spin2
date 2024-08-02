@@ -35,6 +35,7 @@ con { Kevinbot v3 Constant Settings }
   BATT_SPEED    = 1500                                                          ' Millisecond delay between every battery update default=1500
   TEMP_SPEED    = 3000                                                          ' Millisecond delay between every thermometer update default=3000
   DISP_SPEED    = 500                                                           ' Millisecond delay between every display (lcd) update default=500
+  BME_SPEED     = 1000
 
   SYSTEM_TICK   = TICK_SPEED                                                    ' Tick speed of System (use TICK_SPEED for "CORE" tick) default=TICK_SPEED
   SYS_TICK_TOL  = 500                                                           ' System Tick Tolerance default=200
@@ -66,7 +67,7 @@ con { Kevinbot v3 Constant Settings }
 
   BMS_CALIB     = 358                                                           ' Voltage x10 at the input of the voltage divider that produces 3.3v at the output  default=330
 
-  BMS_MODE      = batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V18
+  BMS_MODE      = _batt.M_V12_V18                                                ' Expected voltages for voltmeters default=batt.M_V12_V18
 
   ' TODO: Re-enable later
   BATT_ERRORS   = false                                                          ' ONLY FOR DEBUGGING, DO NOT DISABLE FOR NORMAL OPERATION, disable over and undervoltage errors and disabling default=true
@@ -86,7 +87,9 @@ con { Kevinbot v3 Constant Settings }
   CAM_LEDS      = 16                                                             ' number of leds in camera ring
   BASE_LEDS     = 100                                                             ' number of leds in base
   TOTAL_LEDS    = HEAD_LEDS+BODY_LEDS+CAM_LEDS+BASE_LEDS                        ' total leds in whole robot
-  LEDS_TYPE     = leds.TYPE_2812B                                               ' led strip type, not interchangable
+  LEDS_TYPE     = _leds.TYPE_2812B                                               ' led strip type, not interchangable
+
+  CAM_COLOR     = $FF_FF_FF_00
 
   S_LIGHT_UPDATE_HEAD = 200
   S_LIGHT_UPDATE_BODY = 200
@@ -106,6 +109,10 @@ con { Kevinbot v3 Constant Settings }
   S_BODY_EFFECT     = 1
   S_BASE_EFFECT     = 1
 
+  '' bme
+  ENABLE_BME        = true
+  BME_ADDR          = $77
+
 
 dat { Kevinbot v3 Constant Settings }
 
@@ -122,8 +129,8 @@ dat { Kevinbot v3 Constant Settings }
 '' ============================= ''
 obj
 
-  batt  : "KevinbotV3_BatteryMgmt"                                              ' Kevinbot v3 Voltmeters and Battery Management
-  leds  : "KevinbotV3_LedConsts"                                                 ' Kevinbot v3 Lighting (for constants)
+  _batt : "KevinbotV3_BatteryMgmt"                                              ' Kevinbot v3 Voltmeters and Battery Management
+  _leds : "KevinbotV3_LedConsts"                                                 ' Kevinbot v3 Lighting (for constants)
 
 
 pub null()

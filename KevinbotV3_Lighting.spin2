@@ -13,11 +13,11 @@
 obj
 
 ' main                                                          ' * master Spin cog
-  leds  : "jm_rgbx_pixel"                                       ' * ws281x driver
+  strip : "jm_rgbx_pixel"                                       ' * ws281x driver
   prng  : "jm_prng"                                             '   psuedo rng
-  utils : "ka_utils"                                            '   misc utils
-  sett  : "KevinbotV3_Settings"                                 '   Kevinbot v3 Static Settings
-  pins  : "KevinbotV3_Pinmap"                                   '   Kevinbot v3 Static Pinmap
+  util  : "ka_utils"                                            '   misc utils
+  cfg   : "KevinbotV3_Settings"                                 '   Kevinbot v3 Static Settings
+  _pm   : "KevinbotV3_Pinmap"                                   '   Kevinbot v3 Static Pinmap
   const : "KevinbotV3_LedConsts"                                '   Kevinbot v3 Led consts
 ' * uses cog when loaded
 
@@ -26,7 +26,7 @@ var { globals }
 
   byte pin
 
-  long pixbuf[sett.TOTAL_LEDS]
+  long pixbuf[cfg.TOTAL_LEDS]
 
   byte  head_animation_pos
   byte  head_ani_phase
@@ -47,74 +47,83 @@ pub start()
 
 '' Configure IO and objects for application
 
-  case sett.LEDS_TYPE
+  case cfg.LEDS_TYPE
     const.TYPE_2812B:
-      leds.start_2812b(@pixbuf, sett.TOTAL_LEDS, pins.LED, 5)
+      strip.start_2812b(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_2812:
-      leds.start_2812(@pixbuf, sett.TOTAL_LEDS, pins.LED, 5)
+      strip.start_2812(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_2811:
-      leds.start_2811(@pixbuf, sett.TOTAL_LEDS, pins.LED, 5)
+      strip.start_2811(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_2813:
-      leds.start_2813(@pixbuf, sett.TOTAL_LEDS, pins.LED, 5)
+      strip.start_2813(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_6812X_RGB:
-      leds.start_6812x(@pixbuf, sett.TOTAL_LEDS, pins.LED, 5, 24)
+      strip.start_6812x(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5, 24)
     const.TYPE_6812X_RGBW:
-      leds.start_6812x(@pixbuf, sett.TOTAL_LEDS, pins.LED, 5, 32)
+      strip.start_6812x(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5, 32)
 
 pub fill_body(color) | ch
 
-  repeat ch from sett.BASE_LEDS to sett.BODY_LEDS + sett.BASE_LEDS - 1
-    leds.set(ch, color)
+  repeat ch from cfg.BASE_LEDS to cfg.BODY_LEDS + cfg.BASE_LEDS - 1
+    strip.set(ch, color)
 
 
 pub fill_base(color) | ch
+'' Fill base section of strip with color
 
-  repeat ch from 0 to sett.BASE_LEDS-1
-    leds.set(ch, color)
+  repeat ch from 0 to cfg.BASE_LEDS-1
+    strip.set(ch, color)
 
 
 pub fill_head(color) | ch
+'' Fill head section of strip with color
 
-  repeat ch from sett.BODY_LEDS + sett.BASE_LEDS to sett.BODY_LEDS + sett.BASE_LEDS + sett.HEAD_LEDS - 1
-    leds.set(ch, color)
+  repeat ch from cfg.BODY_LEDS + cfg.BASE_LEDS to cfg.BODY_LEDS + cfg.BASE_LEDS + cfg.HEAD_LEDS - 1
+    strip.set(ch, color)
 
 
 pub fill_cam(color) | ch
+'' Fill camera section of strip with color
 
-  repeat ch from sett.BODY_LEDS + sett.BASE_LEDS + sett.HEAD_LEDS to sett.BODY_LEDS + sett.BASE_LEDS + sett.HEAD_LEDS + sett.CAM_LEDS - 1
-    leds.set(ch, color)
+  repeat ch from cfg.BODY_LEDS + cfg.BASE_LEDS + cfg.HEAD_LEDS to cfg.BODY_LEDS + cfg.BASE_LEDS + cfg.HEAD_LEDS + cfg.CAM_LEDS - 1
+    strip.set(ch, color)
+
+pub fill_camx(color, level) | ch
+'' Fill camera section of strip with color
+
+  repeat ch from cfg.BODY_LEDS + cfg.BASE_LEDS + cfg.HEAD_LEDS to cfg.BODY_LEDS + cfg.BASE_LEDS + cfg.HEAD_LEDS + cfg.CAM_LEDS - 1
+    strip.setx(ch, color, level)
 
 
 pub set_base(ch, color)
 
-  leds.set(ch, color)
+  strip.set(ch, color)
 
 
 pub set_body(ch, color)
 
-  leds.set(ch + sett.BASE_LEDS, color)
+  strip.set(ch + cfg.BASE_LEDS, color)
 
 
 pub set_head(ch, color)
 
-  leds.set(ch + sett.BASE_LEDS + sett.BODY_LEDS, color)
+  strip.set(ch + cfg.BASE_LEDS + cfg.BODY_LEDS, color)
 
 
 pub setx_body(ch, color, level)
 
-  leds.setx(ch + sett.BASE_LEDS, color, level)
+  strip.setx(ch + cfg.BASE_LEDS, color, level)
 
 
 pub setx_head(ch, color, level)
 
-  leds.setx(ch + sett.BASE_LEDS + sett.BODY_LEDS, color, level)
+  strip.setx(ch + cfg.BASE_LEDS + cfg.BODY_LEDS, color, level)
 
 
 { animations }
 
 pub twinkle_head(head_color1) | ch, level, idx
 
-  repeat ch from 0 to sett.HEAD_LEDS-1
+  repeat ch from 0 to cfg.HEAD_LEDS-1
     level := prng.randomize(0, 255)                                         ' randomize level
     setx_head(ch, head_color1, level)                                       ' update channel
 
@@ -132,7 +141,7 @@ pub fade_head(head_color1, head_color2)
   elseif head_animation_pos == 0
     head_ani_phase := 0
 
-  fill_head(leds.morph(head_color1, head_color2, head_animation_pos))
+  fill_head(strip.morph(head_color1, head_color2, head_animation_pos))
 
   if head_ani_phase == 0
     head_animation_pos++
@@ -223,16 +232,16 @@ pub flash_base(base_color1, base_color2)
 
 pub twinkle_body(body_color1) | ch, level, idx
 
-  repeat ch from 0 to sett.BODY_LEDS - 1                                         ' fill body leds
+  repeat ch from 0 to cfg.BODY_LEDS - 1                                         ' fill body leds
     level := prng.randomize(0, 255)                                         ' randomize level
     setx_body(ch, body_color1, level)                                       ' update channel
 
 
 pub twinkle_base(base_color1) | ch, level, idx
 
-  repeat ch from 0 to sett.BASE_LEDS-1                                            ' fill base leds
+  repeat ch from 0 to cfg.BASE_LEDS-1                                            ' fill base leds
     level := prng.randomize(0, 255)                                          ' randomize level
-    leds.setx(ch, base_color1, level)                                        ' update channel
+    strip.setx(ch, base_color1, level)                                        ' update channel
 
 
 pub fade_body(body_color1, body_color2)
@@ -248,7 +257,7 @@ pub fade_body(body_color1, body_color2)
   elseif body_animation_pos == 0
     body_ani_phase := 0
 
-  fill_body(leds.morph(body_color1, body_color2, body_animation_pos))
+  fill_body(strip.morph(body_color1, body_color2, body_animation_pos))
 
   if body_ani_phase == 0
     body_animation_pos++
@@ -269,7 +278,7 @@ pub fade_base(base_color1, base_color2)
   elseif base_animation_pos == 0
     base_ani_phase := 0
 
-  fill_base(leds.morph(base_color1, base_color2, base_animation_pos))
+  fill_base(strip.morph(base_color1, base_color2, base_animation_pos))
 
   if base_ani_phase == 0
     base_animation_pos++
@@ -281,7 +290,7 @@ pub swipe_body(body_color1, body_color2) | i, nf
 
   if body_ani_phase == 0
     set_body(body_animation_pos, body_color1)
-    if body_animation_pos == sett.BODY_LEDS - 2
+    if body_animation_pos == cfg.BODY_LEDS - 2
       body_ani_phase := 1
     body_animation_pos++
   elseif body_ani_phase == 1
@@ -296,12 +305,12 @@ pub swipe_body(body_color1, body_color2) | i, nf
 pub swipe_base(base_color1, base_color2) | i, nf
 
   if base_ani_phase == 0
-    leds.set(base_animation_pos, base_color1)
-    if base_animation_pos == sett.BASE_LEDS - 1
+    strip.set(base_animation_pos, base_color1)
+    if base_animation_pos == cfg.BASE_LEDS - 1
       base_ani_phase := 1
     base_animation_pos++
   elseif base_ani_phase == 1
-    leds.set(base_animation_pos-1, base_color2)
+    strip.set(base_animation_pos-1, base_color2)
     if base_animation_pos == 0
       base_ani_phase := 0
     base_animation_pos--
@@ -314,8 +323,8 @@ pub rainbow_cycle_body(body_bright) | ch
   if ++body_animation_pos > 255
     body_animation_pos := 0
 
-  repeat ch from 0 to sett.BODY_LEDS - 1
-    set_body(ch, leds.scale_rgbw(leds.wheel(((ch * 256 / sett.BODY_LEDS) + body_animation_pos) & $FF), body_bright))
+  repeat ch from 0 to cfg.BODY_LEDS - 1
+    set_body(ch, strip.scale_rgbw(strip.wheel(((ch * 256 / cfg.BODY_LEDS) + body_animation_pos) & $FF), body_bright))
 
 
 pub rainbow_cycle_base(base_bright) | ch
@@ -323,8 +332,8 @@ pub rainbow_cycle_base(base_bright) | ch
   if ++base_animation_pos > 255
     base_animation_pos := 0
 
-  repeat ch from 0 to sett.BASE_LEDS - 1
-    leds.set(ch, leds.scale_rgbw(leds.wheel(((ch * 256 / sett.BASE_LEDS) + base_animation_pos) & $FF), base_bright))
+  repeat ch from 0 to cfg.BASE_LEDS - 1
+    strip.set(ch, strip.scale_rgbw(strip.wheel(((ch * 256 / cfg.BASE_LEDS) + base_animation_pos) & $FF), base_bright))
 
 
 pub magic_cycle_body(body_bright) | ch, pixel_index, color
@@ -332,13 +341,13 @@ pub magic_cycle_body(body_bright) | ch, pixel_index, color
   if ++body_animation_pos > 255
     body_animation_pos := 0
 
-  repeat ch from 0 to sett.BODY_LEDS - 1
-    pixel_index := (ch * 256 / sett.BODY_LEDS) + body_animation_pos
+  repeat ch from 0 to cfg.BODY_LEDS - 1
+    pixel_index := (ch * 256 / cfg.BODY_LEDS) + body_animation_pos
     ' 20 can be changed to control how many leds are in a color
-    color := qsin(1000, pixel_index / 4 - sett.BODY_LEDS, 20)
+    color := qsin(1000, pixel_index / 4 - cfg.BODY_LEDS, 20)
     ' 120 and 200 is the range of colors
-    color := utils.map(color, -1000, 1000, 120, 200)
-    set_body(ch, leds.scale_rgbw(leds.wheel(color & 255), body_bright))
+    color := util.map(color, -1000, 1000, 120, 200)
+    set_body(ch, strip.scale_rgbw(strip.wheel(color & 255), body_bright))
 
 
 pub magic_cycle_base(base_bright) | ch, pixel_index, color
@@ -346,13 +355,13 @@ pub magic_cycle_base(base_bright) | ch, pixel_index, color
   if ++base_animation_pos > 255
     base_animation_pos := 0
 
-  repeat ch from 0 to sett.BASE_LEDS - 1
-    pixel_index := (ch * 256 / sett.BASE_LEDS) + base_animation_pos
+  repeat ch from 0 to cfg.BASE_LEDS - 1
+    pixel_index := (ch * 256 / cfg.BASE_LEDS) + base_animation_pos
     ' 20 can be changed to control how many leds are in a color
-    color := qsin(1000, pixel_index / 4 - sett.BASE_LEDS, 20)
+    color := qsin(1000, pixel_index / 4 - cfg.BASE_LEDS, 20)
     ' 120 and 200 is the range of colors
-    color := utils.map(color, -1000, 1000, 120, 200)
-    leds.set(ch, leds.scale_rgbw(leds.wheel(color & 255), base_bright))
+    color := util.map(color, -1000, 1000, 120, 200)
+    strip.set(ch, strip.scale_rgbw(strip.wheel(color & 255), base_bright))
 
 
 pub fire_cycle_body(body_bright) | ch, pixel_index, color
@@ -360,13 +369,13 @@ pub fire_cycle_body(body_bright) | ch, pixel_index, color
   if ++body_animation_pos > 255
     body_animation_pos := 0
 
-  repeat ch from 0 to sett.BODY_LEDS - 1
-    pixel_index := (ch * 256 / sett.BODY_LEDS) + body_animation_pos
+  repeat ch from 0 to cfg.BODY_LEDS - 1
+    pixel_index := (ch * 256 / cfg.BODY_LEDS) + body_animation_pos
     ' 20 can be changed to control how many leds are in a color
-    color := qsin(1000, pixel_index / 4 - sett.BODY_LEDS, 20)
+    color := qsin(1000, pixel_index / 4 - cfg.BODY_LEDS, 20)
     ' 120 and 200 is the range of colors
-    color := utils.map(color, -1000, 1000, 0, 20)
-    set_body(ch, leds.scale_rgbw(leds.wheel(color & 255), body_bright))
+    color := util.map(color, -1000, 1000, 0, 20)
+    set_body(ch, strip.scale_rgbw(strip.wheel(color & 255), body_bright))
 
 
 pub fire_cycle_base(base_bright) | ch, pixel_index, color
@@ -374,13 +383,13 @@ pub fire_cycle_base(base_bright) | ch, pixel_index, color
   if ++base_animation_pos > 255
     base_animation_pos := 0
 
-  repeat ch from 0 to sett.BASE_LEDS - 1
-    pixel_index := (ch * 256 / sett.BASE_LEDS) + base_animation_pos
+  repeat ch from 0 to cfg.BASE_LEDS - 1
+    pixel_index := (ch * 256 / cfg.BASE_LEDS) + base_animation_pos
     ' 20 can be changed to control how many leds are in a color
-    color := qsin(1000, pixel_index / 4 - sett.BASE_LEDS, 20)
+    color := qsin(1000, pixel_index / 4 - cfg.BASE_LEDS, 20)
     ' 120 and 200 is the range of colors
-    color := utils.map(color, -1000, 1000, 0, 20)
-    leds.set(ch, leds.scale_rgbw(leds.wheel(color & 255), base_bright))
+    color := util.map(color, -1000, 1000, 0, 20)
+    strip.set(ch, strip.scale_rgbw(strip.wheel(color & 255), base_bright))
 
 
 con { license }
