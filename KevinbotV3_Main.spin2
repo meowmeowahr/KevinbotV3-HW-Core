@@ -325,7 +325,7 @@ var { globals }
   long  light_update_base
 
 
-pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z
+pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, m
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -621,10 +621,10 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
       '' Non-critical tasks
 
       if mp_tm.millis() > sett.MPU_SPEED
-          accel_x, accel_y, accel_z := mpu.readAccelRaw()
-          gyro_x, gyro_y, gyro_z := mpu.readGyroRaw()
-          mag_x, mag_y, mag_z := mpu.readMagRaw()
+          accel_x, accel_y, accel_z := mpu.readAccel()
+          gyro_x, gyro_y, gyro_z := mpu.readGyro()
           sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
+          sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
 
       '' LCD Updates / Tick
 

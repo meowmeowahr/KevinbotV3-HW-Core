@@ -987,6 +987,7 @@ PUB readGyro() : x, y, z | ok, maxDPS
 PUB readMagRaw() : rawX, rawY, rawZ
     '' Read and return Magnetometer X-axis, Y-axis and Z-axis raw readings where: 1 = 0.3 uT
     ' raw values [(4095) - (-4096)] -> [1229 uT - -1229 uT]
+    readMagWord(M9DF_MAG_ST2)
     rawX := readMagWord(M9DF_MAG_XOUT_L)
     rawY := readMagWord(M9DF_MAG_YOUT_L)
     rawZ := readMagWord(M9DF_MAG_ZOUT_L)
