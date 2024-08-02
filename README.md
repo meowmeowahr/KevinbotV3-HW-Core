@@ -19,6 +19,7 @@ The code for the Kevinbot v3 Sub-Board
 | jm_pwm.spin2              | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_rgbx_pixel.spin2       | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_gamma8.spin2           | Jon "JonnyMac" McPhalen    | MIT     |
+| bme280_I2C.spin2          | mcalyer                    | MIT     |
 | string.spin2              | Jesse Burt                 | MIT     |
 | string.float.spin2        | Jesse Burt                 | MIT     |
 | termcodes.spin2h          | Jesse Burt                 | MIT     |
