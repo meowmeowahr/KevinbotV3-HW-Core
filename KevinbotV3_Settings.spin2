@@ -16,7 +16,7 @@ con { Kevinbot v3 Constant Settings }
 
   '' Serial
   BR_TERM       = 230400                                                        ' PC Terminal baud default=230400
-  BR_SYSTEM     = 624000                                                        ' Kevinbot v3 baud default=624000
+  BR_SYSTEM     = 921600                                                        ' Kevinbot v3 baud default=624000
 
   RX_BUFF_BYTES = 8192                                                          ' System rx buffer size (bytes) default=1024
   RX_BUFF_LONGS = 192                                                            ' System rx buffer size (longs) default=24
