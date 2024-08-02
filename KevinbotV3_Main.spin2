@@ -225,6 +225,7 @@ obj
 
   batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
+  mpu   : "ka_click_mpu_9dof"                                             '   MPU9250 9DOF IMU
   svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
   leds  : "KevinbotV3_Lighting"                                                 ' * Kevinbot v3 Lighting
 
@@ -241,6 +242,7 @@ obj
   ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
   dp_tm : "jm_ez_timer"                                                         '   Display update timer
   bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
+  mp_tm : "jm_ez_timer"                                                         '   MPU update timer
   l1_tm : "jm_ez_timer"                                                         '   Led timer
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
@@ -742,7 +744,7 @@ pub emergency_stop()
     waitct(0)
 
 
-pub sensor_loop() | left, right, internal, owx_status
+pub sensor_loop() | left, right, internal, owx_status, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z
 
 '' Sensor update cog
 
@@ -763,6 +765,13 @@ pub sensor_loop() | left, right, internal, owx_status
 
   ds_tm.start()
 
+  if sett.ENABLE_MPU
+    mpu.enableDebug(false)
+    mpu.initx(pins.SCL, pins.SDA, -1, -1)
+    mpu.startx(pins.SCL, pins.SDA, -1, -1)
+    mpu.calibrateMPU9150(@gyroBiasXYZ, @accelBiasXYZ)
+    mpu.configDefault()
+
   ' tx data
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
@@ -770,6 +779,14 @@ pub sensor_loop() | left, right, internal, owx_status
       sys.txflush()
       sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
+    if mp_tm.millis() > sett.MPU_SPEED
+          accel_x, accel_y, accel_z := mpu.readAccelRaw()
+          gyro_x, gyro_y, gyro_z := mpu.readGyroRaw()
+          mag_x, mag_y, mag_z := mpu.readMagRaw()
+          sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
+          ' tmpIntX, tmpDecimalX, pSignX := unscale(accel_x, 1000)
+          ' tmpIntY, tmpDecimalY, pSignY := unscale(accel_y, 1000)
+          ' tmpIntZ, tmpDecimalZ, pSignZ := unscale(accel_z, 1000)
 
 
 pub cmd_index(p_src, p_list, nc) : idx | byte buf[32], x, c
@@ -978,12 +995,18 @@ pri copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
 '' End of Serial Queue ''
 '' =================== ''
 
+
+
+DAT { cal data }
+
+accelBiasXYZ long    0[3]
+gyroBiasXYZ long    0[3]
 pub setup()
 
 '' Configure IO and objects for application
 
   ' Serial
-  term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
+  ' term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
   sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
 
   ' Voltmeter

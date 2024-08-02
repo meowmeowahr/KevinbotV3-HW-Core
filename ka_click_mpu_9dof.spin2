@@ -1,0 +1,1310 @@
+'' =================================================================================================
+''
+''   File....... ka_click_mpu_9dof.spin2
+''   Purpose.... Interface to Click MPU 9DOF module via I2C
+''   Authors.... Stephen M Moraco, Kevin Ahr
+''               -- Copyright (c) 2021 Iron Sheep Productions, LLC, Kevin Ahr
+''               -- see below for terms of use
+''   E-mail..... stephen@ironsheep.biz
+''   Started.... Mar 2021
+''   Updated.... 01 Aug 2024
+''
+'' =================================================================================================
+
+''  SPECIAL COMPILER NOTE: as of FlexSpin v5.4.3 there is a BUG with the "signx=" operator
+''    FlexProp v5.4.3 is using [1-32] numbering for bits whereas pNut and PropTool use [0-31]
+''    this code is currently using [1-32] so I can keep testing use FlexSpin.
+''
+''   Issue #145 is files against FlexProp.  REF https://github.com/totalspectrum/spin2cpp/issues/145
+''
+''   replaced all signx= with var := var signx #  (for now, works correctly with flexspin v5.4.3 signx= operator alone was bad)
+
+ {{
+
+    P2 Eval Click Adapter IO Assignments
+    * - used by MPU 9DOF board
+
+               ┌─────────────────────────────┐
+    Base + 06  │ [ ] AN              PWM [ ] │  Base + 05
+               │                             │
+    Base + 07  │ (*) RST             INT (*) │  Base + 04
+               │                             │
+    Base + 08  │ () CS            <-- RX  () │  Base + 03  (marked TX on Click modules)
+               │                             │
+    Base + 09  │ () SCK  <--      --> TX  () │  Base + 02  (marked RX on Click modules)
+               │                             │
+    Base + 10  │ () MISO -->     --> SCL (*) │  Base + 01
+               │                             │
+    Base + 11  │ () MOSI <--     <-> SDA (*) │  Base + 00
+               │                             │
+               │ (*) 3v3              5v0 () │
+               │                             │
+               │ (*) GND             GND (*) │
+               └─────────────────────────────/
+
+    REF Board: https://www.mikroe.com/mpu-9dof-click
+    REF MPU9250A Datasheet: https://download.mikroe.com/documents/datasheets/PS-MPU-9250A-01-v1.1.pdf
+    REF User Manual: https://download.mikroe.com/documents/add-on-boards/click/mpu-9dof/mpu-9dof-click-manual-v100.pdf
+    REF Register Manual: https://inertialelements.com/documents/resources_page/MPU9150-register-manual.pdf
+
+}}
+
+
+con { fixed io pins }
+
+  RX1      = 63  { I }                                          ' programming / debug
+  TX1      = 62  { O }
+
+  SF_CS    = 61  { O }                                          ' serial flash
+  SF_SCK   = 60  { O }
+  SF_SDO   = 59  { O }
+  SF_SDI   = 58  { I }
+
+
+con { click pin offsets }
+
+  #true,  ON, OFF
+  #false, NO, YES
+
+  ' click module pin offsets from basepin
+  #00, P_SDA, P_SCL, P_TX,   P_RX                               ' pins 0-3
+  #04, P_INT, P_PWM, P_AN,   P_RST                              ' pins 4-7
+  #08, P_CS,  P_SCK, P_MISO, P_MOSI                             ' pins 8-11
+
+con { MPU 9DOF configuration info }
+
+    FREQ_9DOF_I2C       = 409               ' 400 kHz
+
+    ' pull-up options: PU_EXT, PU_1K5, PU_3K3, PU_15K
+    PULL_UP_9DOF_I2C    = i2c_bus.PU_EXT   ' no pullups needed
+
+con { MPU 9DOF constants }
+
+    M9DF_XLG_I2C_ADDR_1                    = $69  'Device address jumper pos 1 (= $D2 >> 1)
+    M9DF_XLG_I2C_ADDR_0                    = $68  'Device address jumper pos 0
+    M9DF_M_I2C_ADDR_1                      = $0D  ' Address of the magnetometer in bypass mode
+    M9DF_M_I2C_ADDR_0                      = $0C
+
+    M9DF_WHO_AM_I_MAG                      = $00  ' should return = = $48
+    M9DF_INFO                              = $01
+    M9DF_MAG_ST1                           = $02  ' data ready status bit 0
+    M9DF_MAG_ADDRESS                       = $0C
+    M9DF_MAG_XOUT_L                        = $03  ' data
+    M9DF_MAG_XOUT_H                        = $04
+    M9DF_MAG_YOUT_L                        = $05
+    M9DF_MAG_YOUT_H                        = $06
+    M9DF_MAG_ZOUT_L                        = $07
+    M9DF_MAG_ZOUT_H                        = $08
+    M9DF_MAG_ST2                           = $09  ' Data overflow bit 3 and data read error status bit 2
+    M9DF_MAG_CNTL                          = $0A  ' Power down (0000), single-measurement (0001), self-test (1000) and Fuse ROM (1111) modes on bits 3:0
+    M9DF_MAG_ASTC                          = $0C  ' Self test control
+    M9DF_MAG_ASAX                          = $10  ' Fuse ROM x-axis sensitivity adjustment dataValue8
+    M9DF_MAG_ASAY                          = $11  ' Fuse ROM y-axis sensitivity adjustment dataValue8
+    M9DF_MAG_ASAZ                          = $12  ' Fuse ROM z-axis sensitivity adjustment dataValue8
+
+    M9DF_XGOFFS_TC                         = $00  ' Bit 7 PWR_MODE, bits 6:1 XG_OFFS_TC, bit 0 OTP_BNK_VLD
+    M9DF_YGOFFS_TC                         = $01
+    M9DF_ZGOFFS_TC                         = $02
+    M9DF_X_FINE_GAIN                       = $03  ' [7:0] fine gain
+    M9DF_Y_FINE_GAIN                       = $04
+    M9DF_Z_FINE_GAIN                       = $05
+    M9DF_XA_OFFSET_H                       = $06  ' User-defined trim values for accelerometer, populate with calibration routine
+    M9DF_XA_OFFSET_L_TC                    = $07
+    M9DF_YA_OFFSET_H                       = $08
+    M9DF_YA_OFFSET_L_TC                    = $09
+    M9DF_ZA_OFFSET_H                       = $0A
+    M9DF_ZA_OFFSET_L_TC                    = $0B
+    M9DF_SELF_TEST_X                       = $0D
+    M9DF_SELF_TEST_Y                       = $0E
+    M9DF_SELF_TEST_Z                       = $0F
+    M9DF_SELF_TEST_A                       = $10
+    M9DF_XG_OFFS_USRH                      = $13  ' User-defined trim values for gyroscope, populate with calibration routine
+    M9DF_XG_OFFS_USRL                      = $14
+    M9DF_YG_OFFS_USRH                      = $15
+    M9DF_YG_OFFS_USRL                      = $16
+    M9DF_ZG_OFFS_USRH                      = $17
+    M9DF_ZG_OFFS_USRL                      = $18
+    M9DF_SMPLRT_DIV                        = $19
+    M9DF_CONFIG                            = $1A
+    M9DF_GYRO_CONFIG                       = $1B
+    M9DF_ACCEL_CONFIG                      = $1C
+    M9DF_FF_THR                            = $1D  ' Free-fall
+    M9DF_FF_DUR                            = $1E  ' Free-fall
+    M9DF_MOT_THR                           = $1F  ' Motion detection threshold bits [7:0]
+    M9DF_MOT_DUR                           = $20  ' Duration counter threshold for motion interrupt generation, 1 kHz rate, LSB = 1 ms
+    M9DF_ZMOT_THR                          = $21  ' Zero-motion detection threshold bits [7:0]
+    M9DF_ZRMOT_DUR                         = $22  ' Duration counter threshold for zero motion interrupt generation, 16 Hz rate, LSB = 64 ms
+    M9DF_FIFO_EN                           = $23
+    M9DF_I2C_MST_CTRL                      = $24
+    M9DF_I2C_SLV0_ADDR                     = $25
+    M9DF_I2C_SLV0_REG                      = $26
+    M9DF_I2C_SLV0_CTRL                     = $27
+    M9DF_I2C_SLV1_ADDR                     = $28
+    M9DF_I2C_SLV1_REG                      = $29
+    M9DF_I2C_SLV1_CTRL                     = $2A
+    M9DF_I2C_SLV2_ADDR                     = $2B
+    M9DF_I2C_SLV2_REG                      = $2C
+    M9DF_I2C_SLV2_CTRL                     = $2D
+    M9DF_I2C_SLV3_ADDR                     = $2E
+    M9DF_I2C_SLV3_REG                      = $2F
+    M9DF_I2C_SLV3_CTRL                     = $30
+    M9DF_I2C_SLV4_ADDR                     = $31
+    M9DF_I2C_SLV4_REG                      = $32
+    M9DF_I2C_SLV4_DO                       = $33
+    M9DF_I2C_SLV4_CTRL                     = $34
+    M9DF_I2C_SLV4_DI                       = $35
+    M9DF_I2C_MST_STATUS                    = $36
+    M9DF_INT_PIN_CFG                       = $37
+    M9DF_INT_ENABLE                        = $38
+    M9DF_DMP_INT_STATUS                    = $39  ' Check DMP interrupt
+    M9DF_INT_STATUS                        = $3A
+    M9DF_ACCEL_XOUT_H                      = $3B
+    M9DF_ACCEL_XOUT_L                      = $3C
+    M9DF_ACCEL_YOUT_H                      = $3D
+    M9DF_ACCEL_YOUT_L                      = $3E
+    M9DF_ACCEL_ZOUT_H                      = $3F
+    M9DF_ACCEL_ZOUT_L                      = $40
+    M9DF_TEMP_OUT_H                        = $41
+    M9DF_TEMP_OUT_L                        = $42
+    M9DF_GYRO_XOUT_H                       = $43
+    M9DF_GYRO_XOUT_L                       = $44
+    M9DF_GYRO_YOUT_H                       = $45
+    M9DF_GYRO_YOUT_L                       = $46
+    M9DF_GYRO_ZOUT_H                       = $47
+    M9DF_GYRO_ZOUT_L                       = $48
+    M9DF_EXT_SENS_DATA_00                  = $49
+    M9DF_EXT_SENS_DATA_01                  = $4A
+    M9DF_EXT_SENS_DATA_02                  = $4B
+    M9DF_EXT_SENS_DATA_03                  = $4C
+    M9DF_EXT_SENS_DATA_04                  = $4D
+    M9DF_EXT_SENS_DATA_05                  = $4E
+    M9DF_EXT_SENS_DATA_06                  = $4F
+    M9DF_EXT_SENS_DATA_07                  = $50
+    M9DF_EXT_SENS_DATA_08                  = $51
+    M9DF_EXT_SENS_DATA_09                  = $52
+    M9DF_EXT_SENS_DATA_10                  = $53
+    M9DF_EXT_SENS_DATA_11                  = $54
+    M9DF_EXT_SENS_DATA_12                  = $55
+    M9DF_EXT_SENS_DATA_13                  = $56
+    M9DF_EXT_SENS_DATA_14                  = $57
+    M9DF_EXT_SENS_DATA_15                  = $58
+    M9DF_EXT_SENS_DATA_16                  = $59
+    M9DF_EXT_SENS_DATA_17                  = $5A
+    M9DF_EXT_SENS_DATA_18                  = $5B
+    M9DF_EXT_SENS_DATA_19                  = $5C
+    M9DF_EXT_SENS_DATA_20                  = $5D
+    M9DF_EXT_SENS_DATA_21                  = $5E
+    M9DF_EXT_SENS_DATA_22                  = $5F
+    M9DF_EXT_SENS_DATA_23                  = $60
+    M9DF_MOT_DETECT_STATUS                 = $61
+    M9DF_I2C_SLV0_DO                       = $63
+    M9DF_I2C_SLV1_DO                       = $64
+    M9DF_I2C_SLV2_DO                       = $65
+    M9DF_I2C_SLV3_DO                       = $66
+    M9DF_I2C_MST_DELAY_CTRL                = $67
+    M9DF_SIGNAL_PATH_RESET                 = $68
+    M9DF_MOT_DETECT_CTRL                   = $69
+    M9DF_USER_CTRL                         = $6A  ' Bit 7 enable DMP, bit 3 reset DMP
+    M9DF_PWR_MGMT_1                        = $6B  ' Device defaults to the SLEEP mode
+    M9DF_PWR_MGMT_2                        = $6C
+    M9DF_DMP_BANK                          = $6D  ' Activates a specific bank in the DMP
+    M9DF_DMP_RW_PNT                        = $6E  ' Set read/write pointer to a specific start address in specified DMP bank
+    M9DF_DMP_REG                           = $6F  ' Register in DMP from which to read or to which to write
+    M9DF_DMP_REG_1                         = $70
+    M9DF_DMP_REG_2                         = $71
+    M9DF_FIFO_COUNTH                       = $72
+    M9DF_FIFO_COUNTL                       = $73
+    M9DF_FIFO_R_W                          = $74
+    M9DF_WHO_AM_I_XLG                      = $75  ' Should return = = $68
+
+    M9DF_BIT_SLEEP                         = $40
+    M9DF_BIT_H_RESET                       = $80
+    M9DF_BITS_CLKSEL                       = $07
+    M9DF_MPU_CLK_SEL_PLLGYROX              = $01
+    M9DF_MPU_CLK_SEL_PLLGYROZ              = $03
+    M9DF_MPU_EXT_SYNC_GYROX                = $02
+    M9DF_BITS_AFSL_SEL_2G                  = $00
+    M9DF_BITS_AFSL_SEL_4G                  = $08
+    M9DF_BITS_AFSL_SEL_8G                  = $10
+    M9DF_BITS_AFSL_SEL_16G                 = $18
+    M9DF_BITS_FS_250DPS                    = $00
+    M9DF_BITS_FS_500DPS                    = $08
+    M9DF_BITS_FS_1000DPS                   = $10
+    M9DF_BITS_FS_2000DPS                   = $18
+    M9DF_BITS_FS_MASK                      = $18
+    M9DF_BITS_DLPFCFG_256HZ_NLPF2          = $00
+    M9DF_BITS_DLPFCFG_188HZ                = $01
+    M9DF_BITS_DLPFCFG_98HZ                 = $02
+    M9DF_BITS_DLPFCFG_42HZ                 = $03
+    M9DF_BITS_DLPFCFG_20HZ                 = $04
+    M9DF_BITS_DLPFCFG_10HZ                 = $05
+    M9DF_BITS_DLPFCFG_5HZ                  = $06
+    M9DF_BITS_DLPFCFG_2100HZ_NLPF          = $07
+    M9DF_BITS_DLPFCFG_MASK                 = $07
+    M9DF_BIT_INT_ANYRD_2CLEAR              = $10
+    M9DF_BIT_RAW_RDY_EN                    = $01
+    M9DF_BIT_I2C_IF_DIS                    = $10
+    M9DF_BIT_INT_PIN_CFG                   = $02
+    M9DF_BIT_FIFO_EN                       = $78
+    M9DF_BIT_FIFO_DIS                      = $00
+    M9DF_DEFAULT                           = $00
+
+CON { object interface constants }
+
+#0, DVC_NOT_FOUND, DVC_ADDR0, DVC_ADDR1
+
+    MODE_READ  = %0000_0001
+    MODE_WRITE = %0000_0000
+
+OBJ
+
+    i2c_bus     : "jm_i2c"                                  ' i2c coms
+
+DAT { pre-initialized }
+
+    bShowDebug  BYTE    FALSE
+
+VAR { globals }
+
+    LONG    pingroup_base
+    LONG    pin_scl
+    LONG    pin_sda
+    LONG    pin_int
+    LONG    pin_rst
+
+    LONG    slaveI2CAddr
+    LONG    magnetometerI2CAddr
+
+    LONG    currAccelX, currAccelY, currAccelZ
+    LONG    currMagX, currMagY, currMagZ
+    LONG    currRoll, currPitch, currYaw
+
+    LONG    rootI2CAddr
+
+    BYTE    bPinsSetUp
+    BYTE    bDeviceFound
+    BYTE    bDidCalibrate
+
+    BYTE    bIsMpu9150          ' select proper Die Temp Calculation
+    BYTE    bIsMpu9250
+    BYTE    bIsMpu9255
+
+
+PUB null()
+    '' This is not a top-level object
+
+PUB enableDebug(bEnable)
+    '' turn on/off file internal debug messaging (bEnable = T/F where T means show debug messages from this object)
+    bShowDebug := bEnable
+    if bShowDebug
+        'debug(`snsLog 10 '* DBG ON' 10)
+    else
+        'debug(`snsLog 10 '* DBG off' 10)
+
+PUB init(basepin)
+    '' Initialize the output pins (quiet the device so we can trigger LA)
+    'debug(`term snsLog pos 500 30 size 50 14 textsize 12 color green)
+
+    bDidCalibrate := FALSE ' initially we say the device is NOT calibrated
+
+    bPinsSetUp := setupPins(basepin)  ' configure pin numbers if not already
+    if bPinsSetUp
+        floatClickPins()
+        ' have the driver force its own pins quiet
+        i2c_bus.setup(pin_scl, pin_sda, 100, PULL_UP_9DOF_I2C)
+
+PUB initx(scl, sda, int, rst)
+    '' Initialize the output pins (quiet the device so we can trigger LA)
+    'debug(`term snsLog pos 500 30 size 50 14 textsize 12 color green)
+
+    bDidCalibrate := FALSE ' initially we say the device is NOT calibrated
+
+    pin_scl := scl
+    pin_sda := sda
+    pin_int := int
+    pin_rst := rst
+    bPinsSetUp := TRUE
+
+    if bPinsSetUp
+        floatClickPins()
+        ' have the driver force its own pins quiet
+        i2c_bus.setup(pin_scl, pin_sda, 100, PULL_UP_9DOF_I2C)
+
+
+PUB start(basepin) : bDevicePresent
+    '' Start the device running
+    bDidCalibrate := FALSE ' initially we say the device is NOT calibrated
+
+    bPinsSetUp := setupPins(basepin)
+
+    if bPinsSetUp
+        i2c_bus.setup(pin_scl, pin_sda, FREQ_9DOF_I2C, PULL_UP_9DOF_I2C)
+        bDevicePresent := bDeviceFound := (idDevice() <> DVC_NOT_FOUND)
+        if bShowDebug
+            'debug(`snsLog '* Started' 10)
+
+PUB startx(scl, sda, int, rst) : bDevicePresent
+    '' Start the device running
+    bDidCalibrate := FALSE ' initially we say the device is NOT calibrated
+
+    pin_scl := scl
+    pin_sda := sda
+    pin_int := int
+    pin_rst := rst
+    bPinsSetUp := TRUE
+
+    if bPinsSetUp
+        i2c_bus.setup(pin_scl, pin_sda, FREQ_9DOF_I2C, PULL_UP_9DOF_I2C)
+        bDevicePresent := bDeviceFound := (idDevice() <> DVC_NOT_FOUND)
+        if bShowDebug
+            'debug(`snsLog '* Started' 10)
+
+PUB configDefault()
+    '' Configure the device for normal use
+    if bDeviceFound
+        'enableDebug(TRUE) ' set this to FALSE to disable object debug output on serial port, override with enableDebug(T/F)
+        configureDevice()
+        'enableDebug(FALSE) ' set this to FALSE to disable object debug output on serial port, override with enableDebug(T/F)
+
+PUB deviceID() : eDevice
+    '' return indication (enum value) of if and which device we found on i2c bus
+    eDevice := rootI2CAddr
+
+PUB stop()
+    '' Stop our i2c bus use and float all pins
+    ' no i2c_buss call needed, simply release all our pins
+    if bPinsSetUp
+        floatClickPins()
+        if bShowDebug
+            'debug(`snsLog '* Stopped' 10)
+
+PRI setupPins(basepin) : ok | maskedBasepin
+    ' Configure pin numbers if not already
+    '   return T/F where T means SUCCESS and F means FAILED - bad basepin value
+    ok := true
+    maskedBasepin := basepin & $30  ' ensure is 0,16,32,48
+    if bShowDebug && basepin <> maskedBasepin
+        'debug(`snsLog ' * ERROR setupPins(`(basepin)) - BAD basepin value [0,16,32,48]' 10)
+        ok := false
+
+    if ok
+        if(pingroup_base <> maskedBasepin)
+            pingroup_base := maskedBasepin
+            pin_scl := pingroup_base + P_SCL
+            pin_sda := pingroup_base + P_SDA
+            pin_int := pingroup_base + P_INT
+            pin_rst := pingroup_base + P_RST
+
+PRI floatClickPins()
+    ' pre-condition the click I/O pins
+    if pin_rst > -1 && pin_int > -1
+        pinf(pin_rst)    ' de-assert
+        pinf(pin_int)    ' de-assert
+    pinf(pin_scl)    ' de-assert
+    pinf(pin_sda)    ' de-assert
+
+PRI idDevice() : eDevice | bFoundAddr0, bFoundAddr1
+    ' Identify the address our device is at on the i2c bus
+    bFoundAddr0 := bFoundAddr1 := false
+    if(i2c_bus.present((M9DF_XLG_I2C_ADDR_1 << 1 | MODE_WRITE)))
+        bFoundAddr1 := true
+    else
+        if(i2c_bus.present((M9DF_XLG_I2C_ADDR_0 << 1 | MODE_WRITE)))
+            bFoundAddr0 := true
+
+    rootI2CAddr := DVC_NOT_FOUND
+    slaveI2CAddr := DVC_NOT_FOUND
+    if(!bFoundAddr0 and bFoundAddr1)
+        rootI2CAddr := DVC_ADDR1
+        slaveI2CAddr := M9DF_XLG_I2C_ADDR_1
+        magnetometerI2CAddr := M9DF_M_I2C_ADDR_1  ' Address of the magnetometer in bypass mode
+    elseif(bFoundAddr0 and !bFoundAddr1)
+        rootI2CAddr := DVC_ADDR0
+        slaveI2CAddr := M9DF_XLG_I2C_ADDR_0
+        magnetometerI2CAddr := M9DF_M_I2C_ADDR_0
+
+    if (bFoundAddr0 or bFoundAddr1)
+        ' magnetometerI2CAddr := M9DF_MAG_ADDRESS
+        'if bShowDebug
+            'debug(`snsLog ' * idDevice() found Addr`(rootI2CAddr - 1)' 10)
+    else
+        'if bShowDebug
+            'debug("* idDevice() NOT found\r\n")
+
+    eDevice := rootI2CAddr
+
+DAT { ID messages }
+
+badID       BYTE    "Bad ID", 0
+goodID      BYTE    "Good ID", 0
+have9150    BYTE    "MPU9150", 0
+have9250    BYTE    "MPU9250", 0
+have9255    BYTE    "MPU9255", 0
+haveUnknown BYTE    "{unkn}", 0
+
+PRI configureDevice() | ok, chipID, pMsg, pIdMsg
+    ' this is: void mpu9dof_default_cfg (mpu9dof_t *ctx)
+    'if bShowDebug
+        'debug(`snsLog ' * configureDevice() - didCal=`(bDidCalibrate)' 10), )
+
+    ' Chip reset (only if calibration hasn't been run)
+    if not bDidCalibrate
+        write9150Byte(M9DF_PWR_MGMT_1, M9DF_BIT_H_RESET)
+        waitms(100)
+
+    ' prove that we have access to 9150 device
+    ok, chipID := read9150Byte(M9DF_WHO_AM_I_XLG)   ' should return $68/$71/$73
+
+    pMsg := @goodID
+    bIsMpu9150 := bIsMpu9250 := bIsMpu9255 := FALSE
+    case chipID
+        $68:    ' mup9150
+            pIdMsg := @have9150
+            bIsMpu9150 := TRUE
+        $71:    ' mup9250
+            pIdMsg := @have9250
+            bIsMpu9250 := TRUE
+        $73:    ' mup9255
+            pIdMsg := @have9255
+            bIsMpu9255 := TRUE
+        other:
+            pMsg := @badID
+            pIdMsg := @haveUnknown
+
+    'if bShowDebug
+        'debug("* mpu6x50 ID ", uhex_byte_(chipID), " -", zstr_(pMsg), "- (Found ", zstr_(pIdMsg), "\r\n")
+
+    ok := read9150Words(M9DF_XG_OFFS_USRH, 3, @tmpWords)     ' pre-read gyro regs
+    ok := read9150Words(M9DF_XA_OFFSET_H, 3, @tmpWords)     ' pre-read accel regs
+
+    ' Initialize accel & gyro
+    ' - Sample Rate Divider (=0): divide by 1
+    write9150Byte(M9DF_SMPLRT_DIV, M9DF_DEFAULT)
+
+    ' - config Gyro: Digital Low Pass Filter: Bandwidth 42Hz / Delay 4.8ms, FSYNC input disabled
+    write9150Byte(M9DF_CONFIG, M9DF_BITS_DLPFCFG_42HZ)
+
+    '  FS_SEL   Full Scale    LSB Sensitivity
+    '    0      +-250 DPS     131.0 LSB DPS
+    '    1      +-500 DPS      65.5 LSB DPS
+    '    2      +-1000 DPS     32.8 LSB DPS
+    '    3      +-2000 DPS     16.4 LSB DPS
+    ' config Gyro: FS_SEL=2: +- 1000 degr/s
+    write9150Byte(M9DF_GYRO_CONFIG, M9DF_BITS_FS_250DPS)
+    gyroSensitivity  := 131                         ' = 131 LSB/degrees/sec
+
+    '  AFS_SEL  Full Scale    LSB Sensitivity
+    '     0       +-2 g        16384 LSB mg
+    '     1       +-4 g         8192 LSB mg
+    '     2       +-8 g         4096 LSB mg
+    '     3      +-16 g         2048 LSB mg
+    ' config Accel AFS_SEL=2: +-8g 4096 LSB/g
+    write9150Byte(M9DF_ACCEL_CONFIG, M9DF_BITS_AFSL_SEL_2G)
+    accelSensitivity := 16384                       ' = 16384 LSB/g
+
+    ' Disable FIFOs (=0): (all enables set to 0)
+    write9150Byte(M9DF_FIFO_EN, M9DF_BIT_FIFO_DIS)
+
+    ' Bypass mode enabled: I2C Bypass Enabled
+    write9150Byte(M9DF_INT_PIN_CFG, M9DF_BIT_INT_PIN_CFG)
+
+    ' Disable all interrupts (=0): 3 sources disabled
+    write9150Byte(M9DF_INT_ENABLE, M9DF_DEFAULT)
+
+    ' No FIFO and no I2C slaves (=0): i2c Master off, FIFO off
+    write9150Byte(M9DF_USER_CTRL, M9DF_DEFAULT)
+
+    ' No power management, internal clock source
+    ' - PWR_MGMT_1 (=0): internal 8MHz Osc., Not Sleep mode, Temp sense enabled
+    write9150Byte(M9DF_PWR_MGMT_1, M9DF_DEFAULT)
+    ' - PWR_MGMT_2 (=0): wake ctrl 1.25 Hz (ignored), accel, gyro enabled (not sleeping)
+    write9150Byte(M9DF_PWR_MGMT_2, M9DF_DEFAULT)
+
+    ' Initialize magnetometer
+    ' - select: Mag single-measurement mode
+    writeMagByte(M9DF_MAG_CNTL, M9DF_BIT_RAW_RDY_EN)
+
+    ' prove that we have access to Mag device
+    ok, chipID := readMagByte(M9DF_WHO_AM_I_MAG)   ' should return $48
+    pMsg := (chipID == $48) ? @goodID : @badID
+    'if bShowDebug
+    '    term.fstr2(string("* 6150-Mag ID (0x%.02x vs. 0x48) [%s]' 10), chipID, pMsg)
+    if bShowDebug
+        debug("* 6150-Mag ID (", uhex_byte(chipID), " vs $48) ", zstr_(pMsg))
+
+CON  { ---- orientation tracking ---- }
+
+    M_PI = 3.14159265358979323846   ' place holder
+
+    kONE_DEGREE = 1 frac 360
+    kSCALE = 1_000
+' =============================================================================
+' methods supporting orientation tracking
+' =============================================================================
+PRI updateSensorReadings() | mag_x, mag_y, hypotYZ, hypotXZ, anglePitch, angleRoll, cosPitch, sinPitch, cosRoll, sinRoll, angleYaw, cosPitchMagX, cosRollMagY, sinRollMagZ
+
+    '' read Accel and Mag 3-Axis values and calculate roll/pitch/yaw
+
+    ' MPU 9DOF consists of MPU9150 (accelerometer, gyroscope) and AK8975 (magnetometer)
+    '
+    ' Accelerometer x,y,z +-[2,4,8,16] g
+    ' Gyroscope x,y,z +-[250,500,1000,2000] degrees/sec
+    ' Magnetometer x,y,z +-1200 uT [13 bit (0.3 uT per LSB)]
+    '
+    ' user programmable digital filters for gyroscope, accelerometer and die temp sensor
+
+    ' NOTE: DEGREES_FROM_RADIANS(rad) = (((rad) * 180) / M_PI)
+    '       RADIANS_FROM_DEGREES(degr) =  (((degr) * M_PI) / 180)
+
+    ' REF https://roboticsclubiitk.github.io/2017/12/21/Beginners-Guide-to-IMU.html
+
+    ' ROLL & PITCH from Accelerometer
+    '
+    ' pitch = 180 * atan2(accelX, sqrt(accelY * accelY + accelZ * accelZ))/M_PI;
+    ' roll = 180 * atan2(accelY, sqrt(accelX * accelX + accelZ * accelZ))/M_PI;
+
+    ' YAW from Magnetometer, roll, and pitch
+    '
+    ' mag_x = magReadX * cos(pitch) + magReadY * sin(roll) * sin(pitch) + magReadZ * cos(roll) * sin(pitch)
+    ' mag_y= magReadY * cos(roll) - magReadZ * sin(roll)
+    ' yaw = 180 * atan2(-mag_y, mag_x)/M_PI;
+
+    ' get latest sensor readings
+    currAccelX, currAccelY, currAccelZ := readAccelRaw()
+    currMagX, currMagY, currMagZ := readMagRaw()
+
+    ' ROLL & PITCH from Accelerometer
+    'currPitch := 180 * atan2(currAccelX, sqrt(sqr(currAccelY) + sqr(currAccelZ))) / M_PI
+    hypotYZ, _ := xypol(currAccelY, currAccelZ)
+    _, anglePitch := xypol(currAccelX, hypotYZ)
+    currPitch := anglePitch +/ kONE_DEGREE
+
+    'currRoll := 180 * atan2(currAccelY, sqrt(sqr(currAccelX) + sqr(currAccelZ))) / M_PI
+    hypotXZ, _ := xypol(currAccelX, currAccelZ)
+    _, angleRoll := xypol(currAccelY, hypotXZ)
+    currRoll := angleRoll +/ kONE_DEGREE
+
+    ' YAW from Magnetometer, roll, and pitch
+    _, sinPitch := polxy(kSCALE, anglePitch)
+    cosRoll, sinRoll := polxy(kSCALE, angleRoll)
+    'mag_x := (currMagX * cosPitch) / kSCALE + (currMagY * sinRoll * sinPitch) / (kSCALE * kSCALE) + (currMagZ * cosRoll * sinPitch) / (kSCALE * kSCALE)
+    'mag_y := (currMagY * cosRoll) / kSCALE  - (currMagZ * sinRoll) / kSCALE
+'    cosPitchMagY, sinPitchMagY := polxy(currMagY, anglePitch)
+'    cosPitchMagZ, sinPitchMagZ := polxy(currMagZ, anglePitch)
+    cosPitchMagX, _ := polxy(currMagX, anglePitch)
+    mag_x := cosPitchMagX + (currMagY * sinRoll * sinPitch) / (kSCALE * kSCALE) + (currMagZ * cosRoll * sinPitch) / (kSCALE * kSCALE)
+    ' mag_y := (currMagY * cosRoll) / kSCALE - (currMagZ * sinRoll) / kSCALE
+    cosRollMagY, _ := polxy(currMagY, angleRoll)
+    _, sinRollMagZ := polxy(currMagZ, angleRoll)
+    mag_y := cosRollMagY - sinRollMagZ
+
+    ' currYaw := 180 * atan2(-mag_y, mag_x) / M_PI
+    _, angleYaw := xypol(mag_x, -mag_y)
+    currYaw := angleYaw +/ kONE_DEGREE
+
+PUB getRollPitchYaw() : roll, pitch, yaw
+    '' read sensors, calculate and return latest roll, pitch, yaw
+    updateSensorReadings()
+    roll := currRoll
+    pitch := currPitch
+    yaw := currYaw
+
+PRI sqr(value) : aSquared
+    '' return [value] squared
+    aSquared := value * value
+
+CON { Calibration constants }
+
+MASK_TEMP_BIT = $8000_0000
+#0, X_OFFSET, Y_OFFSET, Z_OFFSET
+
+DAT { Calibration work variables }
+
+gyroSensitivity     LONG    0      ' set by cal/init routines
+accelSensitivity    LONG    0
+
+gyro_bias           LONG    0[3]
+accel_bias          LONG    0[3]
+
+accelBiasWords      WORD    0[3]
+tmpWords            WORD    0[6]   ' data array to hold accelerometer and gyro x, y, z, data during CAL
+
+mask_bit            BYTE    0[3]
+
+
+
+PUB calibrateMPU9150(pGyroBiasXYZ, pAccelBiasXYZ) | tmpIndex, ok, packet_count, fifo_count, tmpValue
+    ' Function which accumulates gyro and accelerometer data after device initialization. It calculates the average
+    ' of the at-rest readings and then loads the resulting offsets into accelerometer and gyro bias registers.
+    '
+    ' REF https://github.com/kriswiner/MPU9150/tree/master/STM32F401 (.c/.h)
+    bDidCalibrate := TRUE   ' we came, we saw, we calibrated!
+
+    ' reset device, reset all registers, clear gyro and accelerometer bias registers
+    write9150Byte(M9DF_PWR_MGMT_1, M9DF_BIT_H_RESET)
+    'waitms(100)    TESTING no wait for now
+
+    ' get stable time source
+    ' Set clock source to be PLL with x-axis gyroscope reference, bits 2:0 = 001
+    write9150Byte(M9DF_PWR_MGMT_1, $01)
+    ' - PWR_MGMT_2 (=0): wake ctrl 1.25 Hz (ignored), accel, gyro enabled (not sleeping)
+    write9150Byte(M9DF_PWR_MGMT_2, M9DF_DEFAULT)
+    'waitms(200)    TESTING no wait for now
+
+    ' Bypass mode enabled: I2C Bypass Enabled ( allow access to MAG )
+    write9150Byte(M9DF_INT_PIN_CFG, M9DF_BIT_INT_PIN_CFG)
+
+    readMagCalValues()
+
+    ' Configure device for bias calculation
+    write9150Byte(M9DF_INT_ENABLE, M9DF_DEFAULT)
+    ' Disable all interrupts (=0): 3 sources disabled
+    write9150Byte(M9DF_INT_ENABLE, M9DF_DEFAULT)
+    write9150Byte(M9DF_FIFO_EN, M9DF_BIT_FIFO_DIS)      ' Disable FIFO
+    write9150Byte(M9DF_PWR_MGMT_1, M9DF_DEFAULT)        ' Turn on internal clock source
+    write9150Byte(M9DF_I2C_MST_CTRL, M9DF_DEFAULT)      ' Disable I2C master
+    write9150Byte(M9DF_USER_CTRL, M9DF_DEFAULT)         ' Disable FIFO and I2C master modes
+    write9150Byte(M9DF_USER_CTRL, $0C)                  ' Reset FIFO and DMP
+    waitms(15)
+
+    ' Configure MPU9150 gyro and accelerometer for bias calculation
+    write9150Byte(M9DF_CONFIG, $01)                 ' Set low-pass filter to 188 Hz
+    write9150Byte(M9DF_SMPLRT_DIV, M9DF_DEFAULT)    ' Set sample rate to 1 kHz
+
+    write9150Byte(M9DF_GYRO_CONFIG, M9DF_DEFAULT)   ' Set gyro full-scale to 250 degrees per second, maximum sensitivity
+    gyroSensitivity  := 131                         ' = 131 LSB/degrees/sec
+    write9150Byte(M9DF_ACCEL_CONFIG, M9DF_DEFAULT)  ' Set accelerometer full-scale to 2 g, maximum sensitivity
+    accelSensitivity := 16384                       ' = 16384 LSB/g
+
+    ' -------------------------------------------
+    ' report on initial values after reset
+    ok := read9150Words(M9DF_XG_OFFS_USRH, 3, @tmpWords)     ' pre-read gyro regs
+    'if bShowDebug
+    '    term.fstr3(string("* calibrateMPU9150()  GYRO x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), WORD [@tmpWords][X_OFFSET], WORD [@tmpWords][Y_OFFSET], WORD [@tmpWords][Z_OFFSET])
+    ok := read9150Words(M9DF_XA_OFFSET_H, 3, @tmpWords)     ' pre-read accel regs
+    'if bShowDebug
+    '    term.fstr3(string("* calibrateMPU9150() ACCEL x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), WORD [@tmpWords][X_OFFSET], WORD [@tmpWords][Y_OFFSET], WORD [@tmpWords][Z_OFFSET])
+    ' -------------------------------------------
+
+    ' Configure FIFO to capture accelerometer and gyro data for bias calculation
+    write9150Byte(M9DF_USER_CTRL, $40)              ' Enable FIFO
+    write9150Byte(M9DF_FIFO_EN, $78)                ' Enable gyro and accelerometer sensors for FIFO (max size 1024 bytes in MPU9150)
+    waitms(80)                                      ' accumulate 80 samples in 80 milliseconds = 960 bytes
+
+    ' At end of sample accumulation, turn off FIFO sensor read
+    write9150Byte(M9DF_FIFO_EN, M9DF_BIT_FIFO_DIS)          ' Disable gyro and accelerometer (all) sensors for FIFO
+    ok, fifo_count := read9150Word(M9DF_FIFO_COUNTH)        ' read FIFO sample count
+    packet_count := fifo_count / 12                         ' How many sets of full gyro and accelerometer data for averaging
+    'if bShowDebug
+        'debug(" - calibrateMPU9150 fifoCount=", udec_(fifo_count), ", packetCount=", udec_(packet_count))
+
+    longfill(@gyro_bias,0,3)
+    longfill(@accel_bias,0,3)
+
+    repeat tmpIndex from 0 to packet_count - 1
+        ok := read9150Words(M9DF_FIFO_R_W, 6, @tmpWords)     ' read data for averaging
+        LONG [@accel_bias][X_OFFSET] += WORD [@tmpWords][0]        ' Sum individual signed 16-bit biases to get accumulated signed 32-bit biases
+        LONG [@accel_bias][Y_OFFSET] += WORD [@tmpWords][1]
+        LONG [@accel_bias][Z_OFFSET] += WORD [@tmpWords][2]
+        LONG [@gyro_bias][X_OFFSET] += WORD [@tmpWords][3]
+        LONG [@gyro_bias][Y_OFFSET] += WORD [@tmpWords][4]
+        LONG [@gyro_bias][Z_OFFSET] += WORD [@tmpWords][5]
+    'if bShowDebug
+    '    term.fstr3(string("* calibrateMPU9150() ACCEL   raw x:%d, y:%d, z:%d' 10), LONG [@accel_bias][X_OFFSET], LONG [@accel_bias][Y_OFFSET], LONG [@accel_bias][Z_OFFSET])
+    '    term.fstr3(string("* calibrateMPU9150()  GYRO   raw x:%d, y:%d, z:%d' 10), LONG [@gyro_bias][X_OFFSET], LONG [@gyro_bias][Y_OFFSET], LONG [@gyro_bias][Z_OFFSET])
+
+    LONG [@accel_bias][X_OFFSET] /=  accelSensitivity ' Normalize sums to get average count biases
+    LONG [@accel_bias][Y_OFFSET] /=  accelSensitivity
+    LONG [@accel_bias][Z_OFFSET] /=  accelSensitivity
+    LONG [@gyro_bias][X_OFFSET]  /=  gyroSensitivity
+    LONG [@gyro_bias][Y_OFFSET]  /=  gyroSensitivity
+    LONG [@gyro_bias][Z_OFFSET]  /=  gyroSensitivity
+
+    LONG [@accel_bias][X_OFFSET] /=  packet_count ' Normalize sums to get average count biases
+    LONG [@accel_bias][Y_OFFSET] /=  packet_count
+    LONG [@accel_bias][Z_OFFSET] /=  packet_count
+    LONG [@gyro_bias][X_OFFSET]  /=  packet_count
+    LONG [@gyro_bias][Y_OFFSET]  /=  packet_count
+    LONG [@gyro_bias][Z_OFFSET]  /=  packet_count
+
+    'if bShowDebug
+    '   term.fstr1(string("* calibrateMPU9150() scale = 1/%d' 10), packet_count)
+    '    term.fstr3(string("* calibrateMPU9150() ACCEL scale x:%d, y:%d, z:%d' 10), LONG [@accel_bias][X_OFFSET], LONG [@accel_bias][Y_OFFSET], LONG [@accel_bias][Z_OFFSET])
+    '    term.fstr3(string("* calibrateMPU9150()  GYRO scale x:%d, y:%d, z:%d' 10), LONG [@gyro_bias][X_OFFSET], LONG [@gyro_bias][Y_OFFSET], LONG [@gyro_bias][Z_OFFSET])
+
+    if LONG [@accel_bias][Z_OFFSET] > 0        ' Remove gravity from the z-axis accelerometer bias calculation
+        LONG [@accel_bias][Z_OFFSET] -= 1   ' was accelSensitivity which was already removed
+    else
+        LONG [@accel_bias][Z_OFFSET] += 1
+
+    'if bShowDebug
+    '    term.fstr2(string("* calibrateMPU9150() gyroSensitivity:%d, accelSensitivity:%d' 10), gyroSensitivity, accelSensitivity)
+    '    term.fstr3(string("* calibrateMPU9150() ACCEL Zcorr x:%d, y:%d, z:%d' 10), LONG [@accel_bias][X_OFFSET], LONG [@accel_bias][Y_OFFSET], LONG [@accel_bias][Z_OFFSET])
+
+    ' Construct the gyro biases for push to the hardware gyro bias registers, which are reset to zero upon device startup
+    '   Divide by 4 to get 32.9 LSB per deg/s to conform to expected bias input format
+    '   Biases are additive, so change sign on calculated average gyro biases
+    'tmpValue := 0 - (LONG[@gyro_bias][X_OFFSET] / 4)
+    tmpValue := 0 - (LONG[@gyro_bias][X_OFFSET] * 1000 / 31)
+    ok := write9150Word(M9DF_XG_OFFS_USRH, tmpValue)     ' Push gyro biases to hardware registers
+    'tmpValue := 0 - (LONG[@gyro_bias][Y_OFFSET] / 4)
+    tmpValue := 0 - (LONG[@gyro_bias][Y_OFFSET] * 1000 / 31)
+    ok := write9150Word(M9DF_YG_OFFS_USRH, tmpValue)
+    'tmpValue := 0 - (LONG[@gyro_bias][Z_OFFSET] / 4)
+    tmpValue := 0 - (LONG[@gyro_bias][Z_OFFSET] * 1000 / 31)
+    ok := write9150Word(M9DF_ZG_OFFS_USRH, tmpValue)
+
+    ok := read9150Words(M9DF_XG_OFFS_USRH, 3, @tmpWords)     ' pre-read gyro regs
+
+    ' construct and return the gyro bias in deg/s for later manual subtraction
+    LONG [pGyroBiasXYZ][X_OFFSET] := LONG [@gyro_bias][X_OFFSET] / gyroSensitivity
+    LONG [pGyroBiasXYZ][Y_OFFSET] := LONG [@gyro_bias][Y_OFFSET] / gyroSensitivity
+    LONG [pGyroBiasXYZ][Z_OFFSET] := LONG [@gyro_bias][Z_OFFSET] / gyroSensitivity
+
+    ' Construct the accelerometer biases for push to the hardware accelerometer bias registers. These registers contain
+    ' factory trim values which must be added to the calculated accelerometer biases; on boot up these registers will hold
+    ' non-zero values. In addition, bit 0 of the lower byte must be preserved since it is used for temperature
+    ' compensation calculations. Accelerometer bias registers expect bias input as 2048 LSB per g, so that
+    ' the accelerometer biases calculated above must be divided by 8.
+
+    ok := read9150Words(M9DF_XA_OFFSET_H, 3, @accelBiasWords)     ' read data for averaging
+    'if bShowDebug
+    '    term.fstr3(string("* calibrateMPU9150() raw ACCEL BIAS bits x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), WORD [@accelBiasWords][X_OFFSET], WORD [@accelBiasWords][Y_OFFSET], WORD [@accelBiasWords][Z_OFFSET])
+
+    ' Mask for temperature compensation bit 0 of lower byte of accelerometer bias registers = $01
+    ' If temperature compensation bit is set, record that fact
+    repeat tmpIndex from 0 to 3 - 1
+        BYTE [@mask_bit][tmpIndex] := (WORD [@accelBiasWords][tmpIndex] & $01) <> 0 ? 1 : 0
+        if BYTE [@mask_bit][tmpIndex] <> 0        ' if temp bit present
+            WORD [@accelBiasWords][tmpIndex] -= 1 ' remove temp bit
+
+    'if bShowDebug
+    '    term.fstr3(string("* calibrateMPU9150()           MASK bits x=%d, y=%d, z=%d' 10), BYTE [@mask_bit][X_OFFSET], BYTE [@mask_bit][Y_OFFSET], BYTE [@mask_bit][Z_OFFSET])
+    '    term.fstr3(string("* calibrateMPU9150()     ACCEL BIAS bits x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), WORD [@accelBiasWords][X_OFFSET], WORD [@accelBiasWords][Y_OFFSET], WORD [@accelBiasWords][Z_OFFSET])
+
+    ' Construct total accelerometer bias, including calculated average accelerometer bias from above
+    ' (Subtract calculated averaged accelerometer bias scaled to 2048 LSB/g (16 g full scale))
+    WORD [@accelBiasWords][X_OFFSET] -= (LONG [@accel_bias][X_OFFSET] * 8)
+    WORD [@accelBiasWords][Y_OFFSET] -= (LONG [@accel_bias][Y_OFFSET] * 8)
+    WORD [@accelBiasWords][Z_OFFSET] -= (LONG [@accel_bias][Z_OFFSET] * 8)
+
+    ' Push accelerometer biases to hardware registers
+    repeat tmpIndex from 0 to 3 - 1
+        WORD [@accelBiasWords][tmpIndex] := (WORD [@accelBiasWords][tmpIndex] & !$01) | BYTE [@mask_bit][tmpIndex]  ' place the correct temp bit
+        write9150word(M9DF_XA_OFFSET_H + (tmpIndex * 2), WORD [@accelBiasWords][tmpIndex])
+
+    ' Output scaled accelerometer biases for manual subtraction in the main program
+    LONG [pAccelBiasXYZ][X_OFFSET] := LONG [@accel_bias][X_OFFSET]
+    LONG [pAccelBiasXYZ][Y_OFFSET] := LONG [@accel_bias][Y_OFFSET]
+    LONG [pAccelBiasXYZ][Z_OFFSET] := LONG [@accel_bias][Z_OFFSET]
+
+PRI readMagCalValues() : x,y, z | ok, BYTE magCalValues[3], pBytes
+    ' read and store the Mag Calibration values
+    writeMagByte(M9DF_MAG_CNTL, $00) ' Power down
+    writeMagByte(M9DF_MAG_CNTL, $0F) ' Enter Fuse ROM access mode
+    ok := readMagBytes(M9DF_MAG_ASAX, 3, @magCalValues)
+    pBytes := @magCalValues
+    'if bShowDebug
+    '    term.fstr3(string("* readMagCalValues()     MAG CAL values x:0x%.02x, y:0x%.02x, z:0x%.02x' 10), BYTE [pBytes][X_OFFSET], BYTE [pBytes][Y_OFFSET], BYTE [pBytes][Z_OFFSET])
+
+    x := BYTE [pBytes][X_OFFSET]
+    y := BYTE [pBytes][Y_OFFSET]
+    z := BYTE [pBytes][Z_OFFSET]
+    'if bShowDebug
+    '    term.fstr3(string("* readMagCalValues()     MAG CAL values x:0x%.02x, y:0x%.02x, z:0x%.02x' 10), x, y, z)
+
+    ' - select: Mag single-measurement mode
+    writeMagByte(M9DF_MAG_CNTL, M9DF_BIT_RAW_RDY_EN)
+
+{{
+   SPIN2 BAD CODE: flexspin   Github Issue: #140
+   REF: https://github.com/totalspectrum/spin2cpp/issues/140
+
+PRI readMagCalValuesBAD() : x,y, z | ok, BYTE magCalValues[3]
+    ' read and store the Mag Calibration values
+    writeMagByte(M9DF_MAG_CNTL, $00) ' Power down
+    writeMagByte(M9DF_MAG_CNTL, $0F) ' Enter Fuse ROM access mode
+    ok := readMagBytes(M9DF_MAG_ASAX, 3, @magCalValues)
+    'if bShowDebug
+        term.fstr3(string("* readMagCalValues()     MAG CAL values x:0x%.02x, y:0x%.02x, z:0x%.02x' 10), BYTE [@magCalValues][X_OFFSET], BYTE [@magCalValues][Y_OFFSET], BYTE [@magCalValues][Z_OFFSET])
+
+    x := BYTE [@magCalValues][X_OFFSET]        ' FlexSpin broken
+    y := BYTE [@magCalValues][Y_OFFSET]
+    z := BYTE [@magCalValues][Z_OFFSET]
+
+    ' - select: Mag single-measurement mode
+    writeMagByte(M9DF_MAG_CNTL, M9DF_BIT_RAW_RDY_EN)
+
+=================================================================
+
+void initAK8975A(float * destination)
+{
+  uint8_t rawData[3];  // x/y/z gyro register data stored here
+  writeByte(AK8975A_ADDRESS, AK8975A_CNTL, 0x00); // Power down
+  wait(0.01);
+  writeByte(AK8975A_ADDRESS, AK8975A_CNTL, 0x0F); // Enter Fuse ROM access mode
+  wait(0.01);
+  readBytes(AK8975A_ADDRESS, AK8975A_ASAX, 3, &rawData[0]);  // Read the x-, y-, and z-axis calibration values
+  destination[0] =  (float)(rawData[0] - 128)/256.0f + 1.0f; // Return x-axis sensitivity adjustment values
+  destination[1] =  (float)(rawData[1] - 128)/256.0f + 1.0f;
+  destination[2] =  (float)(rawData[2] - 128)/256.0f + 1.0f;
+}
+}}
+
+CON  { ---- Sensor Reads ---- }
+' =============================================================================
+' ACCELerometer access routines
+'
+PUB readAccelRaw() : x, y, z | ok, WORD wordStore[3]
+    '' Read and return Accelerometer X-axis, Y-axis and Z-axis
+    '_, x := read9150Word(M9DF_ACCEL_XOUT_H)
+    '_, y := read9150Word(M9DF_ACCEL_YOUT_H)
+    '_, z := read9150Word(M9DF_ACCEL_ZOUT_H)
+
+    ' FIXME: UPDATE should use Data Ready Interrupt?
+    '  Interrupt Control bit : Reg $38 (INT_ENABLE), bit0 (DATA_RDY_EN)
+    '             Status bit : Reg $3A (INT_STATUS), bit0 (DATA_RDY_INT)
+
+    '  AFS_SEL  Full Scale    LSB Sensitivity
+    '     0       +-2 g        16384 LSB mg
+    '     1       +-4 g         8192 LSB mg
+    '     2       +-8 g         4096 LSB mg
+    '     3      +-16 g         2048 LSB mg
+
+    'if bShowDebug
+    '    term.fstr3(string("* readAccelRaw() 1 WORD x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), x, y, z)
+    ok := read9150Words(M9DF_ACCEL_XOUT_H, 3, @wordStore)
+    x := wordStore[0]
+    y := wordStore[1]
+    z := wordStore[2]
+    x := x signx 15
+    y := y signx 15
+    z := z signx 15
+    if bShowDebug
+        debug("readAccelRaw: ", uhex_word(x), uhex_word(y), uhex_word(z))
+
+    'if bShowDebug
+    '    term.fstr6(string("* readAccelRaw() 3 WORDs x:0x%.04x (%d), y:0x%.04x (%d), z:0x%.04x (%d)' 10), x, x, y, y, z, z)
+
+PUB readAccel() : x, y, z | ok, maxG
+    '' Read and return Accelerometer X-axis, Y-axis and Z-axis in
+    '_, x := read9150Word(M9DF_ACCEL_XOUT_H)
+    '_, y := read9150Word(M9DF_ACCEL_YOUT_H)
+    '_, z := read9150Word(M9DF_ACCEL_ZOUT_H)
+    x, y, z := readAccelRaw()
+
+    ' AFS_SEL = 0 :: FULL is +-2g (see configDefault())
+    maxG := 2
+    x := (x * maxG * 1000) / 32768
+    y := (y * maxG * 1000) / 32768
+    z := (z * maxG * 1000) / 32768
+    debug("readAccel: ", uhex_word(x), uhex_word(y), uhex_word(z))
+
+    'if bShowDebug
+    '    term.fstr6(string("* readAccelRaw() 3 WORDs x:0x%.04x (%d), y:0x%.04x (%d), z:0x%.04x (%d)' 10), x, x, y, y, z, z)
+
+' =============================================================================
+' GYROscope access routines
+'
+PUB readGyroRaw() : x, y, z | ok, WORD wordStore[3]
+    '' Read and return Gyroscope X-axis, Y-axis and Z-axis
+    '_, x := read9150Word(M9DF_GYRO_XOUT_H)
+    '_, y := read9150Word(M9DF_GYRO_YOUT_H)
+    '_, z := read9150Word(M9DF_GYRO_ZOUT_H)
+
+    ' FIXME: UPDATE should use Data Ready Interrupt?
+    '  Interrupt Control bit : Reg $38 (INT_ENABLE), bit0 (DATA_RDY_EN)
+    '             Status bit : Reg $3A (INT_STATUS), bit0 (DATA_RDY_INT)
+
+    '  FS_SEL   Full Scale    LSB Sensitivity
+    '    0      +-250 DPS     131.0 LSB DPS
+    '    1      +-500 DPS      65.5 LSB DPS
+    '    2      +-1000 DPS     32.8 LSB DPS
+    '    3      +-2000 DPS     16.4 LSB DPS
+
+    'if bShowDebug
+    '    term.fstr3(string("* readGyroRaw() 1 WORD x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), x, y, z)
+
+    '    ax = (float)accelCount[0]*aRes; // - accelBias[0];  // get actual g value, this depends on scale being set
+    'case AFS_2G:
+    '      aRes = 2.0/32768.0;
+    'case AFS_4G:
+    '      aRes = 4.0/32768.0;
+    'case AFS_8G:
+    '      aRes = 8.0/32768.0;
+    'case AFS_16G:
+    '      aRes = 16.0/32768.0;
+
+    ok := read9150Words(M9DF_ACCEL_XOUT_H, 3, @wordStore)
+    x := wordStore[0]
+    x := x signx 15
+    y := wordStore[1]
+    y := y signx 15
+    z := wordStore[2]
+    z := z signx 15
+
+    'if bShowDebug
+    '    term.fstr6(string("* readGyroRaw() 3 WORDs x:0x%.04x (%d), y:0x%.04x (%d), z:0x%.04x (%d)' 10), x, x, y, y, z, z)
+
+PUB readGyro() : x, y, z | ok, maxDPS
+    '' Read and return Gyroscope X-axis, Y-axis and Z-axis
+    x, y, z := readGyroRaw()
+
+    ' FIXME: UPDATE should use Data Ready Interrupt?
+    '  Interrupt Control bit : Reg $38 (INT_ENABLE), bit0 (DATA_RDY_EN)
+    '             Status bit : Reg $3A (INT_STATUS), bit0 (DATA_RDY_INT)
+
+    '  FS_SEL   Full Scale    LSB Sensitivity
+    '    0      +-250 DPS     131.0 LSB DPS
+    '    1      +-500 DPS      65.5 LSB DPS
+    '    2      +-1000 DPS     32.8 LSB DPS
+    '    3      +-2000 DPS     16.4 LSB DPS
+
+    'if bShowDebug
+    '    term.fstr3(string("* readGyroRaw() 1 WORD x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), x, y, z)
+
+    '    ax = (float)accelCount[0]*aRes; // - accelBias[0];  // get actual g value, this depends on scale being set
+    'case GFS_250DPS:
+    '      gRes = 250.0/32768.0;
+    'case GFS_500DPS:
+    '      gRes = 500.0/32768.0;
+    'case GFS_1000DPS:
+    '      gRes = 1000.0/32768.0;
+    'case GFS_2000DPS:
+    '      gRes = 2000.0/32768.0;
+
+    maxDPS := 250
+    x := (x * maxDPS * 1000) / 32768
+    y := (y * maxDPS * 1000) / 32768
+    z := (z * maxDPS * 1000) / 32768
+
+    'if bShowDebug
+    '    term.fstr6(string("* readGyroRaw() 3 WORDs x:0x%.04x (%d), y:0x%.04x (%d), z:0x%.04x (%d)' 10), x, x, y, y, z, z)
+
+' =============================================================================
+' MAGnetometer access routines
+'
+PUB readMagRaw() : rawX, rawY, rawZ
+    '' Read and return Magnetometer X-axis, Y-axis and Z-axis raw readings where: 1 = 0.3 uT
+    ' raw values [(4095) - (-4096)] -> [1229 uT - -1229 uT]
+    rawX := readMagWord(M9DF_MAG_XOUT_L)
+    rawY := readMagWord(M9DF_MAG_YOUT_L)
+    rawZ := readMagWord(M9DF_MAG_ZOUT_L)
+
+    'if bShowDebug
+    '    term.fstr3(string("* readMagRaw() 3 WORDs x:0x%.04x, y:0x%.04x, z:0x%.04x' 10), rawX, rawY, rawZ)
+
+PUB readMag() : x, y, z | rawX, rawY, rawZ, multiplier
+    '' Read and return Magnetometer X-axis, Y-axis and Z-axis in uT values
+    ' 9150: raw values [(4095) - (-4096)] where: 1 = 0.30 uT -> [1229 uT - -1229 uT]
+    ' 9250: raw values [(32760) - (-32760)] where: 1 = 0.15 uT -> [4912 uT - -4912 uT]
+    rawX, rawY, rawZ := readMagRaw()
+    multiplier := bIsMpu9150 ? 30 : 15
+    x := rawX * multiplier / 100
+    y := rawY * multiplier / 100
+    z := rawZ * multiplier / 100
+
+    'if bShowDebug
+    '    term.fstr6(string("* readMagRaw() 3 WORDs x:0x%.04x (%d uT), y:0x%.04x (%d uT), z:0x%.04x (%d uT)' 10), rawX, x, rawY, y, rawZ, z)
+
+
+CON { temp calculation constants }
+
+    kOFFSET_9150 = 35
+    kDIVISOR_9150 = 340
+    kOFFSET_9250 = 21
+    kSCALE_TEMP = 1000
+    kSCALE_100_TEMP = 100
+    kfDIVISOR_9250 = 333.87 * FLOAT(kSCALE_100_TEMP)
+
+PUB readTemperature() : tempInC, tempDecimalInC | ok, rawTemp, fTempWorkInC, fTempRemainderInC, dvcTempOffset
+    '' Read and return die Temperature in C
+    ' (TEMP_OUT Register Value as a signed quantity)/340 + 35 --- from REGISTER Document
+    tempInC := 0
+    tempDecimalInC := 0
+    ok, rawTemp := read9150Word(M9DF_TEMP_OUT_H)
+    if not ok
+        if bIsMpu9150
+            ' (TEMP_OUT Register Value as a signed quantity)/340 + 35 --- from 9150 REGISTER Document
+            fTempWorkInC := float(rawTemp)
+            dvcTempOffset := kOFFSET_9150
+        else
+            ' ((TEMP_OUT Register Value as a signed quantity) - 21)/333.87 + 21 --- from 9250 REGISTER Document
+            fTempWorkInC := float((rawTemp - kOFFSET_9250) * kSCALE_100_TEMP)
+        'if bShowDebug
+        '    term.fstr1(string("* readTemperature() fTempWorkInC=%d' 10), fTempWorkInC)
+            dvcTempOffset := kOFFSET_9250
+
+        tempInC := round(fTempWorkInC /. kfDIVISOR_9250)
+        fTempRemainderInC := fTempWorkInC -. (float(tempInC) *. kfDIVISOR_9250)
+        tempDecimalInC := round((fTempRemainderInC *. 1000.0) /. kfDIVISOR_9250)
+
+        ' add in device specific correction
+        tempInC += dvcTempOffset
+        debug("rdTemp: ok")
+    else
+        'if bShowDebug
+            'debug(`snsLog ' * readTemperature() ERROR: read failed' 10)
+        debug("rdTemp: ERROR")
+
+    'if bShowDebug
+        'debug(`snsLog ' * readTemperature() rawTmp=`(rawTemp), tmpC=`(tempInC).`(tempDecimalInC)' 10)
+
+PUB comvert2TempInF(tempInC, tempDecimalInC) : tempInF, tempDecimalInF | tempWorkInF
+    '' Convert temperature in C to temperature in F
+    tempWorkInF := (tempInC * kSCALE_TEMP) + tempDecimalInC
+    'if bShowDebug
+    '    term.fstr1(string("* comvert2TempInF() tempWorkInF=%d' 10), tempWorkInF)
+    tempWorkInF *= 9
+    tempWorkInF /= 5
+    tempInF := tempWorkInF / kSCALE_TEMP
+    tempDecimalInF := tempWorkInF - (tempInF * kSCALE_TEMP)
+    tempInF += 32
+
+    'if bShowDebug
+        'debug(`snsLog ' * comvert2TempInF(tempC=`(tempInC).`(tempDecimalInC)) -> tempF=`(tempInF).`(tempDecimalInF)' 10)
+
+PUB getIntPinState() : bPinState | rawPin
+    '' Return interpreted value of Interrupt pin where 1 = TRUE, 0 = FALSE
+    rawPin := pinr(pin_int)
+    bPinState := (rawPin == 0) ? false : true
+    'if bShowDebug
+        'debug(`snsLog ' * getIntPinState() PinRaw=`(rawPin), state=`(bPinState)' 10)
+
+CON  { ---- Device reads & writes ---- }
+
+PUB write9150Byte(regAddr, dataValue8) : ok | ackbit
+    '' Write {dataValue8} to register {regAddr}
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(regAddr)
+    ok |= ackbit
+    ackBit := i2c_bus.write(dataValue8)
+    ok |= ackbit
+    i2c_bus.stop()
+    waitms(2)  ' after each write!
+
+    'if bShowDebug
+    ' following is more than 10ms...
+    '    term.fstr3(string("* write9150Byte(0x%.02x)=0x%.02x ok:%d' 10), regAddr, dataValue8, ok)
+
+PUB write9150Word(regAddr, dataValue16) : ok | ackbit
+    '' Write {dataValue16} to register {regAddr} - hi byte to {regAddr}, lo byte to {regAddr}+1
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(regAddr)
+    ok |= ackbit
+    ackBit := i2c_bus.write(dataValue16.byte[1])
+    ok |= ackbit
+    ackBit := i2c_bus.write(dataValue16.byte[0])
+    ok |= ackbit
+    i2c_bus.stop()
+    waitms(2)  ' after each write!
+
+    'if bShowDebug
+    ' following is more than 10ms...
+    '    term.fstr3(string("* write9150Word(0x%.02x)=0x%.04x ok:%d' 10), regAddr, dataValue16, ok)
+
+PUB read9150Byte(regAddr) : ok, result8 | ackbit
+    '' Read {result16} from register {regAddr}
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(regAddr)
+    ok |= ackbit
+    i2c_bus.start()
+    ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_READ)
+    ok |= ackbit
+    result8 := i2c_bus.read(i2c_bus.NAK)
+    i2c_bus.stop()
+    'if bShowDebug
+    '    'debug(`snsLog ' * read9150Byte(0x%.02x) ok:%d, byt=0x%.02x, ret %d' 10), regAddr, ok, result8, result8)
+    if bShowDebug
+        debug(" -rdBy: ", udec(ok), uhex_byte(regAddr), uhex_byte(result8))
+
+PUB read9150Bytes(regAddr, byteCount, pByteStore) : ok | ackbit, byteIndex, endAckNak, result8
+    '' Read {result16} from register {regAddr}
+    'if bShowDebug
+    '    term.fstr2(string("* read9150Bytes(0x%.02x, ct=%d)' 10), regAddr, byteCount)
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(regAddr)
+    ok |= ackbit
+    i2c_bus.start()
+    ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_READ)
+    ok |= ackbit
+    repeat byteIndex from 0 to byteCount - 1
+        endAckNak := (byteIndex == byteCount - 1) ? i2c_bus.NAK : i2c_bus.ACK
+        result8 := i2c_bus.read(endAckNak)
+        result8 := result8 signx 7
+        BYTE [pByteStore][byteIndex] := result8
+        'if bShowDebug
+        '    term.fstr5(string(" -- read9150Bytes(0x%.02x) ok:%d, BYTE[%d]ret 0x%.02x(%d)' 10), regAddr + byteIndex, ok, byteIndex, result8, result8)
+    i2c_bus.stop()
+    'if bShowDebug
+    '    term.fstr3(string(" -- read9150Bytes(0x%.02x, ct=%d) ok:%d' 10), regAddr, byteCount, ok)
+
+PUB read9150Word(regAddr) : ok, result16 | ackbit
+    '' Read {result16} from register {regAddr} - hi byte from {regAddr}, lo byte from {regAddr}+1
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(regAddr)
+    ok |= ackbit
+    i2c_bus.start()
+    ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_READ)
+    ok |= ackbit
+    result16.byte[1] := i2c_bus.read(i2c_bus.ACK)
+    result16.byte[0] := i2c_bus.read(i2c_bus.NAK)
+    i2c_bus.stop()
+    result16 := result16 signx 15   ' sign extend
+    'if bShowDebug
+    '    term.fstr5(string("* read9150Word(0x%.02x) ok:%d, hi 0x%.02x, lo 0x%.02x, ret %d' 10), regAddr, ok, result16.byte[1], result16.byte[0], result16)
+    if bShowDebug
+        debug(" -rdWd: ", udec(ok), uhex_byte(regAddr), uhex_word(result16))
+
+PUB read9150Words(regAddr, wordCount, pWordStore) : ok | ackbit, wordIndex, endAckNak, result16
+    '' Read {wordCount} WORDs starting from register {regAddr} - hi byte from {regAddr},
+    ''  lo byte from {regAddr}+1, hi byte from {regAddr}+2, lo byte from {regAddr}+3 and so on
+    ''  placing them into WORD array located at {pWordStore}
+    'if bShowDebug
+    '    term.fstr2(string("* read9150Words(0x%.02x, ct=%d)' 10), regAddr, wordCount)
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(regAddr)
+    ok |= ackbit
+    i2c_bus.start()
+    ackBit := i2c_bus.write((slaveI2CAddr << 1) | MODE_READ)
+    ok |= ackbit
+    repeat wordIndex from 0 to wordCount - 1
+        endAckNak := (wordIndex == wordCount - 1) ? i2c_bus.NAK : i2c_bus.ACK
+        result16.byte[1] := i2c_bus.read(i2c_bus.ACK)
+        result16.byte[0] := i2c_bus.read(endAckNak)
+        result16 := result16 signx 15   ' sign extend
+        WORD [pWordStore][wordIndex] := result16
+        'if bShowDebug
+        '    term.fstr7(string(" -- read9150Words(0x%.02x) ok:%d, hi:0x%.02x, lo:0x%.02x, WORD[%d]ret 0x%.04x(%d)' 10), regAddr + (wordIndex * 2), ok, result16.byte[1], result16.byte[0], wordIndex, result16, result16)
+    i2c_bus.stop()
+    'if bShowDebug
+    '    term.fstr3(string(" -- read9150Words(0x%.02x, ct=%d) ok:%d' 10), regAddr, wordCount, ok)
+    if bShowDebug
+        debug("read9150Words: ", uhex_byte(regAddr), udec_long(wordCount))
+        repeat wordIndex from 0 to wordCount - 1
+            debug("  #", udec_byte_(wordIndex), " ", uhex_word_(WORD [pWordStore][wordIndex]))
+
+PUB readMagByte(magRegister) : ok, result8 | ackbit
+    '' Read {result8} from Magnetometer register {magRegister}
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((magnetometerI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(magRegister)
+    ok |= ackbit
+    i2c_bus.start()
+    ackBit := i2c_bus.write((magnetometerI2CAddr << 1) | MODE_READ)
+    ok |= ackbit
+    result8 := i2c_bus.read(i2c_bus.NAK)
+    result8 := result8 signx 7   ' sign extend
+    i2c_bus.stop()
+    'if bShowDebug
+        'debug(`snsLog ' * readMagByte(0x%.02x) ok:%d, byt=0x%.02x, ret %d' 10), magRegister, ok, result8, result8)
+
+PUB readMagBytes(magRegister, byteCount, pByteStore) : ok | ackbit, byteIndex, endAckNak, result8
+    '' Read {result8} from Magnetometer register {magRegister}
+    'if bShowDebug
+    '    term.fstr3(string("* readMagBytes(0x%.02x, ct=%d, pBYTES=0x%.08x)' 10), magRegister, byteCount, pByteStore)
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((magnetometerI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(magRegister)
+    ok |= ackbit
+    i2c_bus.start()
+    ackBit := i2c_bus.write((magnetometerI2CAddr << 1) | MODE_READ)
+    ok |= ackbit
+    repeat byteIndex from 0 to byteCount - 1
+        endAckNak := (byteIndex == byteCount - 1) ? i2c_bus.NAK : i2c_bus.ACK
+        result8 := i2c_bus.read(endAckNak)
+        result8 := result8 signx 7   ' sign extend
+        BYTE [pByteStore][byteIndex] := result8
+        'if bShowDebug
+        '    term.fstr6(string(" -- readMagBytes(0x%.02x) ok:%d, BYTE[%d]0x%.08x ret 0x%.02x(%d)' 10), magRegister + byteIndex, ok, byteIndex, pByteStore + byteIndex, result8, result8)
+    i2c_bus.stop()
+    'if bShowDebug
+    '    term.fstr3(string(" -- readMagBytes(0x%.02x, ct=%d) ok:%d' 10), magRegister, byteCount, ok)
+
+
+PUB readMagWordGood(magRegister) : result16 | tmpOK, ok
+    '' Read two bytes from MAG regAddr lo is 1st byte read, hi is 2nd byte read
+    writeMagByte(M9DF_MAG_CNTL, $01)
+    waitms(7)  ' wait for mesurement complete
+
+    ok, result16.byte[1] := readMagByte(magRegister + 1)
+    tmpOK, result16.byte[0] := readMagByte(magRegister)
+    ok |= tmpOK
+    result16 := result16 signx 15   ' sign extend
+    'if bShowDebug
+    '    term.fstr6(string("* readMagWord(0x%.02x) ok:%d, hi:0x%.02x, lo:0x%.02x, ret 0x%.04x(%d)' 10), magRegister, ok, result16.byte[1], result16.byte[0], result16, result16)
+
+PUB readMagWord(magRegister) : result16 | tmpOK, ok, result8
+    '' Read two bytes from MAG regAddr lo is 1st byte read, hi is 2nd byte read
+    writeMagByte(M9DF_MAG_CNTL, $01)
+    waitms(7)  ' wait for mesurement complete
+
+    ok, result8 := readMagByte(magRegister + 1)
+    result16.byte[1] := result8
+    tmpOK, result8 := readMagByte(magRegister)
+    result16.byte[0] := result8
+    ok |= tmpOK
+    result16 := result16 signx 15   ' sign extend
+    'if bShowDebug
+    '    term.fstr6(string("* readMagWord(0x%.02x) ok:%d, hi:0x%.02x, lo:0x%.02x, ret 0x%.04x(%d)' 10), magRegister, ok, result16.byte[1], result16.byte[0], result16, result16)
+
+PUB writeMagByte(magRegister, dataValue8) : ok | ackbit
+    '' Write {dataValue8} to Magnetometer register {magRegister}
+    i2c_bus.start()
+    ok := ackBit := i2c_bus.write((magnetometerI2CAddr << 1) | MODE_WRITE)
+    ackBit := i2c_bus.write(magRegister)
+    ok |= ackbit
+    ackBit := i2c_bus.write(dataValue8)
+    ok |= ackbit
+    i2c_bus.stop()
+
+    'if bShowDebug
+    '    term.fstr3(string("* writeMagByte(0x%.02x)=0x%.02x ok:%d' 10), magRegister, dataValue8, ok)
+
+
+DAT { enableFSY messages }
+
+onMsg   byte    "On", 0
+offMsg  byte    "Off", 0
+
+PUB enableFSY(bEnableStatus) | pMsg
+    '' Turn on/off FSY function - where {bEnableStatus} is T/F - T = ON, F = OFF
+    pMsg := (bEnableStatus) ? @onMsg : @offMsg
+    if(bEnableStatus)
+        pinh(pin_rst)
+    else
+        pinl(pin_rst)
+    'if bShowDebug
+        'debug("* enableFSY()=", zstr_(pMsg))
+
+con { --- license --- }
+
+{{
+
+ -------------------------------------------------------------------------------------------------
+  Terms of Use: MIT License
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify,
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to the following
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+  CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ =================================================================================================
+}}
