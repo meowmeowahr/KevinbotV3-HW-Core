@@ -225,7 +225,6 @@ obj
 
   batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
-  mpu   : "ka_click_mpu_9dof"                                             '   MPU9250 9DOF IMU
   svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
   leds  : "KevinbotV3_Lighting"                                                 ' * Kevinbot v3 Lighting
 
@@ -242,7 +241,6 @@ obj
   ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
   dp_tm : "jm_ez_timer"                                                         '   Display update timer
   bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
-  mp_tm : "jm_ez_timer"                                                         '   MPU update timer
   l1_tm : "jm_ez_timer"                                                         '   Led timer
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
@@ -619,12 +617,6 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
 
     else
       '' Non-critical tasks
-
-      if mp_tm.millis() > sett.MPU_SPEED
-          accel_x, accel_y, accel_z := mpu.readAccelRaw()
-          gyro_x, gyro_y, gyro_z := mpu.readGyroRaw()
-          mag_x, mag_y, mag_z := mpu.readMagRaw()
-          sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
 
       '' LCD Updates / Tick
 
@@ -1027,13 +1019,6 @@ pub setup()
     l1_tm.start()
     l2_tm.start()
     l3_tm.start()
-
-  if sett.ENABLE_MPU
-    mpu.enableDebug(false)
-    mpu.initx(pins.SCL, pins.SDA, -1, -1)
-    mpu.startx(pins.SCL, pins.SDA, -1, -1)
-    mpu.calibrateMPU9150(@gyroBiasXYZ, @accelBiasXYZ)
-    mpu.configDefault()
 
 pub wait_for_terminal(clear)
 

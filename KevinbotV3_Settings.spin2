@@ -106,9 +106,6 @@ con { Kevinbot v3 Constant Settings }
   S_BODY_EFFECT     = 1
   S_BASE_EFFECT     = 1
 
-  '' MPU
-  ENABLE_MPU         = true
-  MPU_SPEED          = 200
 
 dat { Kevinbot v3 Constant Settings }
 
