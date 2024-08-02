@@ -108,7 +108,7 @@ con { Kevinbot v3 Constant Settings }
 
   '' MPU
   ENABLE_MPU         = true
-  MPU_SPEED          = 500
+  MPU_SPEED          = 200
 
 dat { Kevinbot v3 Constant Settings }
 

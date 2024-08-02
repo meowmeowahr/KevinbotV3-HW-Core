@@ -325,7 +325,7 @@ var { globals }
   long  light_update_base
 
 
-pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active
+pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -620,6 +620,12 @@ pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_sta
     else
       '' Non-critical tasks
 
+      if mp_tm.millis() > sett.MPU_SPEED
+          accel_x, accel_y, accel_z := mpu.readAccelRaw()
+          gyro_x, gyro_y, gyro_z := mpu.readGyroRaw()
+          mag_x, mag_y, mag_z := mpu.readMagRaw()
+          sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
+
       '' LCD Updates / Tick
 
       if sett.ENABLE_LCD
@@ -744,7 +750,7 @@ pub emergency_stop()
     waitct(0)
 
 
-pub sensor_loop() | left, right, internal, owx_status, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z
+pub sensor_loop() | left, right, internal, owx_status
 
 '' Sensor update cog
 
@@ -765,13 +771,6 @@ pub sensor_loop() | left, right, internal, owx_status, accel_x, accel_y, accel_z
 
   ds_tm.start()
 
-  if sett.ENABLE_MPU
-    mpu.enableDebug(false)
-    mpu.initx(pins.SCL, pins.SDA, -1, -1)
-    mpu.startx(pins.SCL, pins.SDA, -1, -1)
-    mpu.calibrateMPU9150(@gyroBiasXYZ, @accelBiasXYZ)
-    mpu.configDefault()
-
   ' tx data
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
@@ -779,14 +778,6 @@ pub sensor_loop() | left, right, internal, owx_status, accel_x, accel_y, accel_z
       sys.txflush()
       sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
-    if mp_tm.millis() > sett.MPU_SPEED
-          accel_x, accel_y, accel_z := mpu.readAccelRaw()
-          gyro_x, gyro_y, gyro_z := mpu.readGyroRaw()
-          mag_x, mag_y, mag_z := mpu.readMagRaw()
-          sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
-          ' tmpIntX, tmpDecimalX, pSignX := unscale(accel_x, 1000)
-          ' tmpIntY, tmpDecimalY, pSignY := unscale(accel_y, 1000)
-          ' tmpIntZ, tmpDecimalZ, pSignZ := unscale(accel_z, 1000)
 
 
 pub cmd_index(p_src, p_list, nc) : idx | byte buf[32], x, c
@@ -1037,6 +1028,12 @@ pub setup()
     l2_tm.start()
     l3_tm.start()
 
+  if sett.ENABLE_MPU
+    mpu.enableDebug(false)
+    mpu.initx(pins.SCL, pins.SDA, -1, -1)
+    mpu.startx(pins.SCL, pins.SDA, -1, -1)
+    mpu.calibrateMPU9150(@gyroBiasXYZ, @accelBiasXYZ)
+    mpu.configDefault()
 
 pub wait_for_terminal(clear)
 
