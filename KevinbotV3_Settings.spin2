@@ -24,7 +24,7 @@ con { Kevinbot v3 Constant Settings }
   RX_MAX_CMD    = 32                                                            ' System rx max command length default=32
   RX_MAX_VAL    = 64                                                            ' System rx max value length default=64
   RX_MAX_SUBVAL = 8                                                             ' System rx max sub-value length default=8
-  Q_OVERRUN_ERR = false
+  Q_OVERRUN_ERR = true
 
   WAIT_FOR_TERM = false                                                         ' Require return key to be pressed on terminal before boot default=false
 
@@ -38,7 +38,7 @@ con { Kevinbot v3 Constant Settings }
   BME_SPEED     = 1000
 
   SYSTEM_TICK   = TICK_SPEED                                                    ' Tick speed of System (use TICK_SPEED for "CORE" tick) default=TICK_SPEED
-  SYS_TICK_TOL  = 500                                                           ' System Tick Tolerance default=200
+  SYS_TICK_TOL  = 1000                                                          ' System Tick Tolerance default=200
 
   '' Status light
   ENABLE_RSL    = true                                                          ' Enable robot status light

@@ -133,7 +133,7 @@ Commands
                         byte    "core.link.unlink"      , 0
                         byte    "connection.isready"    , 0
                         byte    "connection.ok"         , 0
-                        byte    "system.enabled"        , 0
+                        byte    "kevinbot.tryenable"    , 0
                         byte    "system.estop"          , 0
                         byte    "s"                     , 0
                         byte    "servo.setraw"          , 0
@@ -278,6 +278,7 @@ var { globals }
   '' Driver Init
   byte  term_cog_id
   byte  sys_serial_cog_id
+  byte  led_cog_id
   byte  lcd_init_status
   byte  servo_init_status
 
@@ -368,7 +369,7 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
     tone(0, 1000)
 
   ' Cogs
-  sensor_cog_id := cogspin(newcog, sensor_loop, @sensor_stack)
+  sensor_cog_id := cogspin(newcog, sensor_loop(), @sensor_stack)
   rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
 
   ' Start timers
@@ -385,6 +386,13 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
         sys.fstr1(string("core.error=%d", 10), core_status)
 
       tk_tm.start()
+
+
+    ' system tick errors / display
+    if link_status == L_LINKED
+      if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL)
+        link_status := L_NO_LINK
+        core_status := S_TICK_FAIL
 
     ' Update battery data
     if bt_tm.millis() >= sett.BATT_SPEED
@@ -498,28 +506,34 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           leds.fire_cycle_base(base_bright)
 
 
-    if bm_tm.millis() >= sett.BME_SPEED
-      bm_tm.start()
-      bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi := bme.periodic_measurement()
-      case bme_return
-        bme.ERROR_CHIP_ID:
-          core_status := S_BME_CHIP_ID
-        bme.ERROR_CALIB_NVM:
-          core_status := S_BME_CALIB_NVM
-        bme.ERROR_CALIB_TP:
-          core_status := S_BME_CALIB_TP
-        bme.ERROR_CALIB_HUM:
-          core_status := S_BME_CALIB_HUM
-        bme.ERROR_THP:
-          core_status := S_BME_THP
-        bme.ERROR_MEAS_TIMEOUT:
-          core_status := S_BME_MEAS_TIMEOUT
-        bme.ERROR_NOT_NORMAL_MODE:
-          core_status := S_BME_NOT_NORMAL_MODE
+    if sett.ENABLE_BME
+      if bm_tm.millis() >= sett.BME_SPEED
+        bm_tm.start()
+        bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi := bme.periodic_measurement()
+        case bme_return
+          bme.ERROR_CHIP_ID:
+            core_status := S_BME_CHIP_ID
+          bme.ERROR_CALIB_NVM:
+            core_status := S_BME_CALIB_NVM
+          bme.ERROR_CALIB_TP:
+            core_status := S_BME_CALIB_TP
+          bme.ERROR_CALIB_HUM:
+            core_status := S_BME_CALIB_HUM
+          bme.ERROR_THP:
+            core_status := S_BME_THP
+          bme.ERROR_MEAS_TIMEOUT:
+            core_status := S_BME_MEAS_TIMEOUT
+          bme.ERROR_NOT_NORMAL_MODE:
+            core_status := S_BME_NOT_NORMAL_MODE
 
-      sys.fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+        sys.fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
 
     if serial_queue_has_data()
+      last_system_tick := getms()
+      if (not (link_status == L_LINKED)) and (handshake_requested == false)
+            sys.str(string("connection.requesthandshake", 10))
+            handshake_requested := true
+
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
       index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
@@ -534,14 +548,12 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           buzzer_end_time := buzzer_start_time + str.atoi(@rxSubVal2Buffer)
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
         6:                                                                      ' system.tick
-          last_system_tick := getms()
           ' Check if re-handshake required
           if (not (link_status == L_LINKED)) and (handshake_requested == false)
             sys.str(string("connection.requesthandshake", 10))
             handshake_requested := true
         7:                                                                      ' core.errors.clear
           core_status := S_OK
-          last_system_tick := getms()                                           ' prevent system tick error
           reset_serial_queue_status()
         8:                                                                      ' core.link.unlink
           if core_status == S_TICK_FAIL
@@ -549,35 +561,33 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           link_status := L_NO_LINK
         9:                                                                      ' connection.isready
           link_status := L_LINK_WAIT
-          last_system_tick := getms()                                           ' prevent system tick error
           sys.str(string("ready", 10))
           ' handshake_requested := false
         10:                                                                     ' connection.ok
           link_status := L_LINKED
-          last_system_tick := getms()                                           ' prevent system tick error
-        11:                                                                     ' system.enabled
+        11:                                                                     ' kevinbot.tryenable
           if core_status == S_OK
             robot_enabled := str.atoi(@rxValueBuffer)
           else
             robot_enabled := 0
+          if str.atoi(@rxValueBuffer) == 1
+            sys.str(string("core.enabled=true", 10))
+          else
+            sys.str(string("core.enabled=false", 10))
         12:                                                                     ' system.estop
           robot_enabled := 2
           core_status := S_ESTOP
           emergency_stop()
-        13:                                                                     ' servo.set
+        13:                                                                     ' s
           util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
           svo.set_position(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-          last_system_tick := getms()                                           ' prevent system tick error
         14:                                                                     ' servo.setraw
           util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
           svo.set_position_us(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-          last_system_tick := getms()                                           ' prevent system tick error
         15:                                                                     ' servo.all
           svo.set_all_position(str.atoi(@rxValueBuffer))
-          last_system_tick := getms()                                           ' prevent system tick error
         16:                                                                     ' servo.allraw
           svo.set_all_position_us(str.atoi(@rxValueBuffer))
-          last_system_tick := getms()                                           ' prevent system tick error
         17:                                                                     ' lighting.head.effect
             head_effect := cmd_index(@rxValueBuffer, @HeadEffects, NumHead)
             if head_effect == 1
@@ -588,12 +598,10 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           head_color1 := util.hex2val(@rxValueBuffer)
             if head_effect == 1
               leds.fill_head(head_color1)
-          last_system_tick := getms()                                           ' prevent system tick error
         19:                                                                     ' lighting.head.color2
           head_color2 := util.hex2val(@rxValueBuffer)
             if head_effect == 2
               leds.fill_head(head_color2)
-          last_system_tick := getms()                                           ' prevent system tick error
         20:                                                                     ' lighting.head.update
           light_update_head := str.atoi(@rxValueBuffer)
         21:                                                                     ' lighting.head.bright
@@ -608,12 +616,10 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           body_color1 := util.hex2val(@rxValueBuffer)
             if body_effect == 1
               leds.fill_body(body_color1)
-          last_system_tick := getms()                                           ' prevent system tick error
         24:                                                                     ' lighting.body.color2
           body_color2 := util.hex2val(@rxValueBuffer)
             if body_effect == 2
               leds.fill_body(body_color2)
-          last_system_tick := getms()                                           ' prevent system tick error
         25:                                                                     ' lighting.body.update
           light_update_body := str.atoi(@rxValueBuffer)
         26:                                                                     ' lighting.body.bright
@@ -628,19 +634,16 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           base_color1 := util.hex2val(@rxValueBuffer)
             if base_effect == 1
               leds.fill_base(base_color1)
-          last_system_tick := getms()                                           ' prevent system tick error
         29:                                                                     ' lighting.base.color2
           base_color2 := util.hex2val(@rxValueBuffer)
             if base_effect == 2
               leds.fill_base(base_color2)
-          last_system_tick := getms()                                           ' prevent system tick error
         30:                                                                     ' lighting.base.update
           light_update_base := str.atoi(@rxValueBuffer)
         31:                                                                     ' lighting.base.bright
           base_bright := str.atoi(@rxValueBuffer)
         32:                                                                     ' lighting.base.color1
           leds.fill_camx(sett.CAM_COLOR, str.atoi(@rxValueBuffer))
-          last_system_tick := getms()
 
     else
       '' Non-critical tasks
@@ -666,12 +669,6 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           lcd_icon := I_CHECK
       else
           lcd_icon := I_ERROR
-
-      ' system tick errors / display
-      if link_status == L_LINKED
-        if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL)
-          link_status := L_NO_LINK
-          core_status := S_TICK_FAIL
 
       ' lcd loop every sett.DISP_SPEED ms
       if sett.ENABLE_LCD
@@ -745,11 +742,13 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
 pub emergency_stop()
 '' Emergency stop as many functions as possible
 
-  ' kill cogs
-  cogstop(rx_cog_id)
-  cogstop(sensor_cog_id)
-  cogstop(term_cog_id)
-  cogstop(sys_serial_cog_id)
+  sys.str(string("core.enabled=false", 10))
+  sys.txflush()
+
+  leds.fill_head($00_00_00_00)
+  leds.fill_body($00_00_00_00)
+  leds.fill_base($00_00_00_00)
+  leds.fill_cam($00_00_00_00)
 
   ' TODO: Drivebase kill here
   svo.kill()
@@ -764,10 +763,17 @@ pub emergency_stop()
     disp.display_main_lines(@DisplayEstopLine0, @DisplayEstopLine1)
     disp.set_backlight(false)
 
+  ' kill cogs
+  waitms(50) ' settle down
+  cogstop(rx_cog_id)
+  cogstop(sensor_cog_id)
+  cogstop(term_cog_id)
+  cogstop(sys_serial_cog_id)
+  leds.stop()
+
   ' infinite loop
   repeat
     waitct(0)
-
 
 pub sensor_loop() | left, right, internal, owx_status
 
@@ -1006,17 +1012,12 @@ pri copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
 '' =================== ''
 
 
-
-DAT { cal data }
-
-accelBiasXYZ long    0[3]
-gyroBiasXYZ long    0[3]
 pub setup()
 
 '' Configure IO and objects for application
 
   ' Serial
-  ' term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
+  term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
   sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
 
   ' Voltmeter
@@ -1038,7 +1039,7 @@ pub setup()
 
   ' Leds
   if sett.ENABLE_LEDS
-    leds.start()
+    led_cog_id := leds.start() - 1
     leds.fill_base($00_00_00_00)
     leds.fill_body($00_00_00_00)
     leds.fill_head($00_00_00_00)

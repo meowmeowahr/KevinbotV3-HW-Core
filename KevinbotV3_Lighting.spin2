@@ -25,6 +25,7 @@ obj
 var { globals }
 
   byte pin
+  byte cog
 
   long pixbuf[cfg.TOTAL_LEDS]
 
@@ -43,23 +44,27 @@ pub null()
 '' This is not a top-level object
 
 
-pub start()
+pub start() : idcog
 
 '' Configure IO and objects for application
 
   case cfg.LEDS_TYPE
     const.TYPE_2812B:
-      strip.start_2812b(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
+      cog := strip.start_2812b(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_2812:
-      strip.start_2812(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
+      cog := strip.start_2812(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_2811:
-      strip.start_2811(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
+      cog := strip.start_2811(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_2813:
-      strip.start_2813(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
+      cog := strip.start_2813(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5)
     const.TYPE_6812X_RGB:
-      strip.start_6812x(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5, 24)
+      cog := strip.start_6812x(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5, 24)
     const.TYPE_6812X_RGBW:
-      strip.start_6812x(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5, 32)
+      cog := strip.start_6812x(@pixbuf, cfg.TOTAL_LEDS, _pm.LED, 5, 32)
+  return cog
+
+pub stop()
+  strip.stop()
 
 pub fill_body(color) | ch
 
