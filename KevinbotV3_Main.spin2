@@ -336,7 +336,8 @@ var { globals }
 
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
 accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, ...
-bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, long m1_watt, long m2_watt, m1_amp, m2_amp
+bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, ...
+long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   core_status := S_OK
   link_status := L_NO_LINK
