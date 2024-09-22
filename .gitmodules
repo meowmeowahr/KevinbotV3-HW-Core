@@ -1,0 +1,3 @@
+[submodule "P2-BLDC-Motor-Control"]
+	path = P2-BLDC-Motor-Control
+	url = https://github.com/ironsheep/P2-BLDC-Motor-Control

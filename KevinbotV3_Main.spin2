@@ -14,7 +14,7 @@
 
 con { timing }
 
-  CLK_FREQ = 250_000_000                                                        ' system freq as a constant
+  CLK_FREQ = 220_000_000                                                        ' system freq as a constant
   MS_001   = CLK_FREQ / 1_000                                                   ' ticks in 1ms
   US_001   = CLK_FREQ / 1_000_000                                               ' ticks in 1us
 
@@ -155,9 +155,10 @@ Commands
                         byte    "lighting.base.update"  , 0
                         byte    "lighting.base.bright"  , 0
                         byte    "lighting.cam.bright"   , 0
+                        byte    "drive.power"           , 0
                         byte    0
 
-NumCmds                 byte    32
+NumCmds                 byte    33
 
 
 rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
@@ -224,6 +225,9 @@ obj
 
   pins  : "KevinbotV3_Pinmap"                                                   '   Kevinbot v3 Board Pinouts
   sett  : "KevinbotV3_Settings"                                                 '   Kevinbot v3 Static Settings
+  motc  : "P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig"                 '   Kevinbot v3 Motion Settings
+
+  wheels : "P2-BLDC-Motor-Control/src/isp_steering_2wheel.spin2"                '   the dual-drive BLDC motors
 
   batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
   temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
@@ -346,6 +350,7 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
   body_bright, base_bright := sett.S_BODY_BRIGHTNESS, sett.S_BASE_BRIGHTNESS
 
   setup()
+  setup_motion()
 
   waitms(sett.STARTUP_DELAY)
 
@@ -393,6 +398,9 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
       if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL)
         link_status := L_NO_LINK
         core_status := S_TICK_FAIL
+
+    if link_status == L_NO_LINK
+      wheels.stopMotors()
 
     ' Update battery data
     if bt_tm.millis() >= sett.BATT_SPEED
@@ -573,6 +581,7 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           if str.atoi(@rxValueBuffer) == 1
             sys.str(string("core.enabled=true", 10))
           else
+            wheels.stopMotors()
             sys.str(string("core.enabled=false", 10))
         12:                                                                     ' system.estop
           robot_enabled := 2
@@ -644,6 +653,10 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
           base_bright := str.atoi(@rxValueBuffer)
         32:                                                                     ' lighting.base.color1
           leds.fill_camx(sett.CAM_COLOR, str.atoi(@rxValueBuffer))
+        33:                                                                     ' drive.power
+          if robot_enabled
+            util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+            wheels.driveAtPower(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
 
     else
       '' Non-critical tasks
@@ -750,7 +763,7 @@ pub emergency_stop()
   leds.fill_base($00_00_00_00)
   leds.fill_cam($00_00_00_00)
 
-  ' TODO: Drivebase kill here
+  wheels.emergencyCutoff()
   svo.kill()
 
   ' Turn off rsl
@@ -770,6 +783,7 @@ pub emergency_stop()
   cogstop(term_cog_id)
   cogstop(sys_serial_cog_id)
   leds.stop()
+  wheels.stop()
 
   ' infinite loop
   repeat
@@ -1017,7 +1031,8 @@ pub setup()
 '' Configure IO and objects for application
 
   ' Serial
-  term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
+  ' term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
+  term_cog_id := -1
   sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
 
   ' Voltmeter
@@ -1052,6 +1067,57 @@ pub setup()
   if sett.ENABLE_BME
     bme.setup(pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.BME_ADDR)
     bme.sensor_config(bme.CONFIG_NAV_MODE)
+
+
+pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor
+
+'' Setup blushless drive
+
+    ' validate user settings/choicess
+    '  do NOT start motor unless all are legit!
+    basePinLt := wheels.validBasePinForChoice(motc.LEFT_MOTOR_BASE)
+    basePinRt := wheels.validBasePinForChoice(motc.RIGHT_MOTOR_BASE)
+    detectModeLt := wheels.validDetectModeForChoice(motc.LEFT_BOARD_TYPE)
+    detectModeRt := wheels.validDetectModeForChoice(motc.RIGHT_BOARD_TYPE)
+    voltage := wheels.validVoltageForChoice(motc.DRIVE_VOLTAGE)
+    motor := wheels.validMotorForChoice(motc.MOTOR_TYPE)
+
+    if basePinLt <> wheels.INVALID_PIN_BASE and basePinRt <> wheels.INVALID_PIN_BASE and voltage <> wheels.INVALID_VOLTAGE and motor <> wheels.INVALID_MOTOR and detectModeLt <> wheels.INVALID_DET_MODE and detectModeRt <> wheels.INVALID_DET_MODE
+      wheels.start(basePinLt, basePinRt, voltage, detectModeLt, detectModeRt)
+      wheels.holdAtStop(false)
+      wheels.setMaxSpeed(100)  ' override 75% with 100%
+
+      waitUntilMotorReady()
+
+pri waitUntilMotorReady()
+    if wheels.isReady() == false
+        debug("* wait motors ready...")
+        repeat
+            if wheels.isReady()
+                quit
+            else
+                waitms(2)
+    debug("* Motors ready, let's drive!")
+
+
+PRI waitUntilMotorDone()
+    if wheels.isStarting() == false
+         debug("* wait until motors start...")
+         repeat
+            if wheels.isStarting()
+                quit
+            else
+                waitms(2)
+
+    if wheels.isStopped() == false
+        debug("* wait until motors finish...")
+        repeat
+            if wheels.isStopped()
+                quit
+            else
+                waitms(2)
+    debug("* Motors stopped!")
+
 
 pub wait_for_terminal(clear)
 
