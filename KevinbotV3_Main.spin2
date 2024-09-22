@@ -14,7 +14,7 @@
 
 con { timing }
 
-  CLK_FREQ = 200_000_000                                                        ' system freq as a constant
+  CLK_FREQ = 250_000_000                                                        ' system freq as a constant
   MS_001   = CLK_FREQ / 1_000                                                   ' ticks in 1ms
   US_001   = CLK_FREQ / 1_000_000                                               ' ticks in 1us
 
