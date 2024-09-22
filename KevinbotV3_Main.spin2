@@ -252,6 +252,7 @@ obj
   l1_tm : "jm_ez_timer"                                                         '   Led timer
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
+  mt_tm : "jm_ez_timer"                                                         '   Motor states timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
@@ -335,7 +336,7 @@ var { globals }
 
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
 accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, ...
-bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
+bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, long m1_watt, long m2_watt, m1_amp, m2_amp
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -535,6 +536,14 @@ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi
             core_status := S_BME_NOT_NORMAL_MODE
 
         sys.fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+
+    if mt_tm.millis() >= sett.MOTOR_STATE_UPD
+      mt_tm.start()
+      m1_stat, m2_stat := wheels.getStatus()
+      m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
+      sys.fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
+      sys.fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
+      sys.fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
 
     if serial_queue_has_data()
       last_system_tick := getms()

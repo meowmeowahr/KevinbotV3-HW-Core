@@ -1,6 +1,12 @@
 # KevinbotV3-HW-Core
 The code for the Kevinbot v3 Sub-Board
 
+> [!IMPORTANT]
+> Motor configs are not included in the repo. It is curcial to have the correct configs. They are located at:
+> ```
+> P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig.spin2
+> ```
+
 # Credits for Objects
 
 | Object                    | Author                     | License |
@@ -25,3 +31,4 @@ The code for the Kevinbot v3 Sub-Board
 | termcodes.spin2h          | Jesse Burt                 | MIT     |
 | char.type.spin2h          | Jesse Burt                 | MIT     |
 | math.float.nocog.spin2    | Chip Gracey                | MIT     |
+| P2-BLDC-Motor-Control     | Stephen Moraco             | MIT     |
