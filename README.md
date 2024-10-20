@@ -1,11 +1,22 @@
 # KevinbotV3-HW-Core
 The code for the Kevinbot v3 Sub-Board
 
-> [!IMPORTANT]
-> Motor configs are not included in the repo. It is curcial to have the correct configs. They are located at:
-> ```
-> P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig.spin2
-> ```
+# Configuration
+
+Motor configurations are located at:
+```
+P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig.spin2
+```
+
+Main configs are lcated at:
+```
+KevinbotV3_Settings.spin2
+```
+
+Pin configs are lcated at:
+```
+KevinbotV3_Pinmap.spin2
+```
 
 # Credits for Objects
 
