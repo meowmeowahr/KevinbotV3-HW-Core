@@ -113,6 +113,10 @@ con { Kevinbot v3 Constant Settings }
   ENABLE_BME        = true
   BME_ADDR          = $77
 
+  '' mpu
+  ENABLE_MPU         = true
+  MPU_SPEED          = 1000
+
   '' Motion
   MOTOR_STATE_UPD   = 80
 

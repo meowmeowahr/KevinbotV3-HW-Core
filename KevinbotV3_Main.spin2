@@ -234,6 +234,7 @@ obj
   svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
   leds  : "KevinbotV3_Lighting"                                                 ' * Kevinbot v3 Lighting
   bme   : "bme280_I2C"                                                          '   BME280 i2c sensor
+  mpu   : "ka_click_mpu_9dof"                                                   '   MPU9250 i2c sensor
 
   util  : "ka_utils"                                                            '   Misc utility methods
   str   : "string"                                                              '   String utilities
@@ -249,6 +250,7 @@ obj
   dp_tm : "jm_ez_timer"                                                         '   Display update timer
   bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
   bm_tm : "jm_ez_timer"                                                         '   bme update timer
+  mp_tm : "jm_ez_timer"                                                         '   mpu update timer
   l1_tm : "jm_ez_timer"                                                         '   Led timer
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
@@ -672,10 +674,10 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       '' Non-critical tasks
 
       if mp_tm.millis() > sett.MPU_SPEED
-          accel_x, accel_y, accel_z := mpu.readAccel()
-          gyro_x, gyro_y, gyro_z := mpu.readGyro()
-          sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
-          sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
+        accel_x, accel_y, accel_z := mpu.readAccel()
+        gyro_x, gyro_y, gyro_z := mpu.readGyro()
+        sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
+        sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
 
       '' LCD Updates / Tick
 
