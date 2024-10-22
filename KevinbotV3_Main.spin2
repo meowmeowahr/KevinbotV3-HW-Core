@@ -671,6 +671,12 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
     else
       '' Non-critical tasks
 
+      if mp_tm.millis() > sett.MPU_SPEED
+          accel_x, accel_y, accel_z := mpu.readAccel()
+          gyro_x, gyro_y, gyro_z := mpu.readGyro()
+          sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
+          sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
+
       '' LCD Updates / Tick
 
       if sett.ENABLE_LCD
