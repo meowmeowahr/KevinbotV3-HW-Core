@@ -1,6 +1,23 @@
 # KevinbotV3-HW-Core
 The code for the Kevinbot v3 Sub-Board
 
+# Configuration
+
+Motor configurations are located at:
+```
+P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig.spin2
+```
+
+Main configs are lcated at:
+```
+KevinbotV3_Settings.spin2
+```
+
+Pin configs are lcated at:
+```
+KevinbotV3_Pinmap.spin2
+```
+
 # Credits for Objects
 
 | Object                    | Author                     | License |
@@ -19,8 +36,10 @@ The code for the Kevinbot v3 Sub-Board
 | jm_pwm.spin2              | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_rgbx_pixel.spin2       | Jon "JonnyMac" McPhalen    | MIT     |
 | jm_gamma8.spin2           | Jon "JonnyMac" McPhalen    | MIT     |
+| bme280_I2C.spin2          | mcalyer                    | MIT     |
 | string.spin2              | Jesse Burt                 | MIT     |
 | string.float.spin2        | Jesse Burt                 | MIT     |
 | termcodes.spin2h          | Jesse Burt                 | MIT     |
 | char.type.spin2h          | Jesse Burt                 | MIT     |
 | math.float.nocog.spin2    | Chip Gracey                | MIT     |
+| P2-BLDC-Motor-Control     | Stephen Moraco             | MIT     |

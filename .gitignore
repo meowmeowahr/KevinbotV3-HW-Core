@@ -8,3 +8,6 @@ Error.txt
 *.binary
 *.p2asm
 *.lst
+
+#Pnut-TS
+*.bin
