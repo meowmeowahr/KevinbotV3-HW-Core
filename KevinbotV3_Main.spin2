@@ -255,6 +255,7 @@ obj
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
   mt_tm : "jm_ez_timer"                                                         '   Motor states timer
+  s_tk  : "jm_ez_timer"                                                         '   System tick timer
 
   term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
   sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
@@ -280,7 +281,6 @@ var { globals }
 
   '' Tick
   long  last_core_tick
-  long  last_system_tick
 
   '' Driver Init
   byte  term_cog_id
@@ -337,7 +337,7 @@ var { globals }
 
 
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
-accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, ...
+accel_x, accel_y, accel_z, long gyro_r, long gyro_p, long gyro_y, mag_x, mag_y, mag_z, ...
 bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, ...
 long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
@@ -384,6 +384,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
   ' Start timers
   tk_tm.start()
   bt_tm.start()
+  s_tk.start()
 
   repeat
     ' Tick
@@ -396,12 +397,12 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
       tk_tm.start()
 
-
     ' system tick errors / display
     if link_status == L_LINKED
-      if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL)
+      if (s_tk.millis() > sett.SYSTEM_TICK + sett.SYS_TICK_TOL)
         link_status := L_NO_LINK
         core_status := S_TICK_FAIL
+        s_tk.start()
 
     if link_status == L_NO_LINK
       wheels.stopMotors()
@@ -421,10 +422,6 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
             if sett.LCD_BATT_MAIN
               case batt.get_count()
                 2:
-                  ' b1_str := nstr.dpdec(batt_1_voltage, 1)
-                  ' b2_str := nstr.dpdec(batt_2_voltage, 1)
-                  ' str.sprintf2(@lcd_buffer, string("B1:%s B2:%s"), b1_str, b2_str)
-                  ' disp.display_line(1, @lcd_buffer)
                   disp.clear_line(1)
                   disp.crsr_xy(0, 1)
                   disp.str(string("B1:"))
@@ -549,7 +546,8 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       sys.fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
 
     if serial_queue_has_data()
-      last_system_tick := getms()
+      s_tk.start()
+
       if (not (link_status == L_LINKED)) and (handshake_requested == false)
             sys.str(string("connection.requesthandshake", 10))
             handshake_requested := true
@@ -557,7 +555,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
       index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
-      case index
+      case_fast index
         1: pinh(str.atoi(@rxValueBuffer))                                       ' core.pinh
         2: pinl(str.atoi(@rxValueBuffer))                                       ' core.pinl
         3: pint(str.atoi(@rxValueBuffer))                                       ' core.pint
@@ -567,7 +565,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           buzzer_start_time := getms()
           buzzer_end_time := buzzer_start_time + str.atoi(@rxSubVal2Buffer)
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-        6:                                                                      ' system.tick
+        6:                                                                      ' core.tick
           ' Check if re-handshake required
           if (not (link_status == L_LINKED)) and (handshake_requested == false)
             sys.str(string("connection.requesthandshake", 10))
@@ -675,8 +673,8 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
       if mp_tm.millis() > sett.MPU_SPEED
         accel_x, accel_y, accel_z := mpu.readAccel()
-        gyro_x, gyro_y, gyro_z := mpu.readGyro()
-        sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
+        gyro_r, gyro_p, gyro_y := mpu.getRollPitchYaw()
+        sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
         sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
 
       '' LCD Updates / Tick
@@ -1085,6 +1083,9 @@ pub setup()
   if sett.ENABLE_BME
     bme.setup(pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.BME_ADDR)
     bme.sensor_config(bme.CONFIG_NAV_MODE)
+
+  if sett.ENABLE_MPU
+    mpu.startx(pins.SCL, pins.SDA, -1, -1)
 
 
 pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor

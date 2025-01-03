@@ -115,7 +115,7 @@ con { Kevinbot v3 Constant Settings }
 
   '' mpu
   ENABLE_MPU         = true
-  MPU_SPEED          = 1000
+  MPU_SPEED          = 200
 
   '' Motion
   MOTOR_STATE_UPD   = 80

@@ -73,10 +73,10 @@ con { click pin offsets }
 
 con { MPU 9DOF configuration info }
 
-    FREQ_9DOF_I2C       = 409               ' 400 kHz
+    FREQ_9DOF_I2C       = 100               ' 100 kHz
 
     ' pull-up options: PU_EXT, PU_1K5, PU_3K3, PU_15K
-    PULL_UP_9DOF_I2C    = i2c_bus.PU_EXT   ' no pullups needed
+    PULL_UP_9DOF_I2C    = i2c_bus.PU_1K5   ' no pullups needed
 
 con { MPU 9DOF constants }
 
