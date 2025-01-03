@@ -257,8 +257,8 @@ obj
   mt_tm : "jm_ez_timer"                                                         '   Motor states timer
   s_tk  : "jm_ez_timer"                                                         '   System tick timer
 
-  term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
-  sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
+  ser   : "isp_octoport_serial"                                                 ' * Serial subsystem
+  fmt   : "isp_mem_strings"                                                     '   String formatter
   ansi  : "jm_ansi"                                                             '   ANSI terminal control sequences
 
 ' * uses cog when loaded
@@ -279,12 +279,14 @@ var { globals }
   byte rx_cog_id
   long taskStack[128]
 
+  '' Octoserial Subsystem
+  long  portHndl[2]                                                             ' pi, terminal = 2 ports
+
   '' Tick
   long  last_core_tick
 
   '' Driver Init
-  byte  term_cog_id
-  byte  sys_serial_cog_id
+  byte  serial_cog_id
   byte  led_cog_id
   byte  lcd_init_status
   byte  servo_init_status
@@ -339,7 +341,8 @@ var { globals }
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
 accel_x, accel_y, accel_z, long gyro_r, long gyro_p, long gyro_y, mag_x, mag_y, mag_z, ...
 bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, ...
-long m1_watt, long m2_watt, long m1_amp, long m2_amp
+long m1_watt, long m2_watt, long m1_amp, long m2_amp, ...
+byte txFmtBuf[100]
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -389,11 +392,15 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
   repeat
     ' Tick
     if tk_tm.millis() >= sett.TICK_SPEED
-      sys.fstr1(string("core.uptime=%d", 10), getsec())
-      sys.fstr1(string("core.uptime_ms=%d", 10), getms())
+      fmt.sFormatStr1(@txFmtBuf, string("core.uptime=%d", 10), getsec())
+      ser.txStr(portHndl[0], @txFmtBuf)
+      fmt.sFormatStr1(@txFmtBuf, string("core.uptime_ms=%d", 10), getms())
+      ser.txStr(portHndl[0], @txFmtBuf)
 
       ifnot core_status == S_OK
-        sys.fstr1(string("core.error=%d", 10), core_status)
+        fmt.sFormatStr1(@txFmtBuf, string("core.error=%d", 10), core_status)
+        ser.txstr(portHndl[0], @txFmtBuf)
+        ' ser.txstr(portHndl[1], @txFmtBuf)
 
       tk_tm.start()
 
@@ -413,9 +420,12 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
       batt_1_status, batt_2_status := batt.get_statuses()
 
-      sys.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
-      sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
-      sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+      fmt.sFormatStr2(@txFmtBuf, string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
+      ser.txstr(portHndl[0], @txFmtBuf)
+      fmt.sFormatStr2(@txFmtBuf, string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
+      ser.txstr(portHndl[0], @txFmtBuf)
+      fmt.sFormatStr2(@txFmtBuf, string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+      ser.txstr(portHndl[0], @txFmtBuf)
 
       if sett.ENABLE_LCD and sett.LCD_LINES < 3
           if lcd_page == DP_HOME
@@ -535,21 +545,26 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           bme.ERROR_NOT_NORMAL_MODE:
             core_status := S_BME_NOT_NORMAL_MODE
 
-        sys.fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+        fmt.sFormatStr4(@txFmtBuf, string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+        ser.txStr(portHndl[0], @txFmtBuf)
+
 
     if mt_tm.millis() >= sett.MOTOR_STATE_UPD
       mt_tm.start()
       m1_stat, m2_stat := wheels.getStatus()
       m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
-      sys.fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
-      sys.fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
-      sys.fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
+      fmt.sFormatStr2(@txFmtBuf, string("motors.status=%d,%d", 10), m1_stat, m2_stat)
+      ser.txStr(portHndl[0], @txFmtBuf)
+      fmt.sFormatStr2(@txFmtBuf, string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
+      ser.txStr(portHndl[0], @txFmtBuf)
+      fmt.sFormatStr2(@txFmtBuf, string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
+      ser.txStr(portHndl[0], @txFmtBuf)
 
     if serial_queue_has_data()
       s_tk.start()
 
       if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            sys.str(string("connection.requesthandshake", 10))
+            ser.txStr(portHndl[0], string("connection.requesthandshake", 10))
             handshake_requested := true
 
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
@@ -568,7 +583,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
         6:                                                                      ' core.tick
           ' Check if re-handshake required
           if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            sys.str(string("connection.requesthandshake", 10))
+            ser.txStr(portHndl[0], string("connection.requesthandshake", 10))
             handshake_requested := true
         7:                                                                      ' core.errors.clear
           core_status := S_OK
@@ -579,7 +594,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           link_status := L_NO_LINK
         9:                                                                      ' connection.isready
           link_status := L_LINK_WAIT
-          sys.str(string("ready", 10))
+          ser.txStr(portHndl[0], string("ready", 10))
           ' handshake_requested := false
         10:                                                                     ' connection.ok
           link_status := L_LINKED
@@ -589,10 +604,10 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           else
             robot_enabled := 0
           if str.atoi(@rxValueBuffer) == 1
-            sys.str(string("core.enabled=true", 10))
+            ser.txStr(portHndl[0], string("core.enabled=true", 10))
           else
             wheels.stopMotors()
-            sys.str(string("core.enabled=false", 10))
+            ser.txStr(portHndl[0], string("core.enabled=false", 10))
         12:                                                                     ' system.estop
           robot_enabled := 2
           core_status := S_ESTOP
@@ -674,8 +689,10 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       if mp_tm.millis() > sett.MPU_SPEED
         accel_x, accel_y, accel_z := mpu.readAccel()
         gyro_r, gyro_p, gyro_y := mpu.getRollPitchYaw()
-        sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
-        sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
+        fmt.sFormatStr3(@txFmtBuf, @"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
+        ser.txStr(portHndl[0], @txFmtBuf)
+        fmt.sFormatStr3(@txFmtBuf, @"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
+        ser.txStr(portHndl[0], @txFmtBuf)
 
       '' LCD Updates / Tick
 
@@ -771,8 +788,8 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 pub emergency_stop()
 '' Emergency stop as many functions as possible
 
-  sys.str(string("core.enabled=false", 10))
-  sys.txflush()
+  ser.txStr(portHndl[0], string("core.enabled=false", 10))
+  ser.txFlush(portHndl[0])
 
   leds.fill_head($00_00_00_00)
   leds.fill_body($00_00_00_00)
@@ -796,8 +813,7 @@ pub emergency_stop()
   waitms(50) ' settle down
   cogstop(rx_cog_id)
   cogstop(sensor_cog_id)
-  cogstop(term_cog_id)
-  cogstop(sys_serial_cog_id)
+  ser.stop()
   leds.stop()
   wheels.stop()
 
@@ -805,7 +821,7 @@ pub emergency_stop()
   repeat
     waitct(0)
 
-pub sensor_loop() | left, right, internal, owx_status
+pub sensor_loop() | left, right, internal, owx_status, byte txFmtBuf[100]
 
 '' Sensor update cog
 
@@ -830,8 +846,9 @@ pub sensor_loop() | left, right, internal, owx_status
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
       left, right, internal := temp.read_temps()
-      sys.txflush()
-      sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+      ser.txFlush(portHndl[0])
+      fmt.sFormatStr3(@txFmtBuf, string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+      ser.txStr(portHndl[0], @txFmtBuf)
       ds_tm.start()
 
 
@@ -937,7 +954,7 @@ pri serial_queue_loop(pRxBffr, lenRxBffr)
 
     ' read serial input forever placing chars in RX Circ Queue
     repeat
-        nTaskChr := sys.rxtime(1000)
+        nTaskChr := ser.rxTime(portHndl[0], 1000)
         if (nTaskChr <> -1)
             serial_enqueue_char(nTaskChr)
 
@@ -1047,9 +1064,9 @@ pub setup()
 '' Configure IO and objects for application
 
   ' Serial
-  ' term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
-  term_cog_id := -1
-  sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
+  portHndl[0] := ser.addPort(pins.RPI_RX, pins.RPI_TX, ser.MODE_NONE, sett.BR_SYSTEM, ser.PU_3K3)  ' start serial for system
+  portHndl[1] := ser.addPort(pins.RX1, pins.TX1, ser.MODE_NONE, sett.BR_TERM, ser.PU_3K3)  ' start serial for terminal
+  serial_cog_id := ser.start()
 
   ' Voltmeter
   batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT, sett.BMS_CALIB)
@@ -1142,8 +1159,8 @@ pub wait_for_terminal(clear)
 
 '' Wait for terminal to be open and key pressed
 
-  term.rxflush()
-  term.rx()
+  ser.rxFlush(portHndl[1])
+  ser.rx(portHndl[1])
   if (clear)
     clear_screen()
 
@@ -1153,9 +1170,9 @@ pub clear_screen()
 '' Move cursor home (upper left) and clear the terminal
 
   if (T_TYPE == T_PST)
-    term.tx(term.HOME)
-    term.tx(term.CLS)
+    ser.tx(portHndl[1], ser.HOME)
+    ser.tx(portHndl[1], ser.CLS)
   else
-    term.str(ansi.hide_cursor())
-    term.str(ansi.home())
-    term.str(ansi.cls())
+    ser.txStr(portHndl[1], ansi.hide_cursor())
+    ser.txStr(portHndl[1], ansi.home())
+    ser.txStr(portHndl[1], ansi.cls())
