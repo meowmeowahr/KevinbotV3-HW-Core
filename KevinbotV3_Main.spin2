@@ -400,7 +400,7 @@ byte txFmtBuf[100]
       ifnot core_status == S_OK
         fmt.sFormatStr1(@txFmtBuf, string("core.error=%d", 10), core_status)
         ser.txstr(portHndl[0], @txFmtBuf)
-        ' ser.txstr(portHndl[1], @txFmtBuf)
+        ser.txstr(portHndl[1], @txFmtBuf)
 
       tk_tm.start()
 
@@ -773,11 +773,11 @@ byte txFmtBuf[100]
         bz_tm.start()
 
         if buzzer_state == 0
-          tone(50, 1000)
-        elseif buzzer_state == 1
-          tone(75, 1500)
-        elseif buzzer_state == 2
           tone(50, 600)
+        elseif buzzer_state == 1
+          tone(75, 600)
+        elseif buzzer_state == 2
+          tone(50, 400)
         elseif buzzer_state > 2
           buzzer_state := -1
         buzzer_state += 1
