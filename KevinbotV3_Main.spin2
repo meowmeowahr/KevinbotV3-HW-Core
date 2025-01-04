@@ -272,6 +272,9 @@ var { globals }
   byte robot_enabled
   byte handshake_requested
 
+  '' Octoserial Subsystem
+  byte txFmtBuf[100]
+
   '' Cogs
   byte sensor_cog_id
   long sensor_stack[128]
@@ -336,13 +339,15 @@ var { globals }
   long  light_update_body
   long  light_update_base
 
+  '' MPU
+  byte mpu_device_present
+
 
 
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
 accel_x, accel_y, accel_z, long gyro_r, long gyro_p, long gyro_y, mag_x, mag_y, mag_z, ...
 bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, ...
-long m1_watt, long m2_watt, long m1_amp, long m2_amp, ...
-byte txFmtBuf[100]
+long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   core_status := S_OK
   link_status := L_NO_LINK
@@ -392,15 +397,11 @@ byte txFmtBuf[100]
   repeat
     ' Tick
     if tk_tm.millis() >= sett.TICK_SPEED
-      fmt.sFormatStr1(@txFmtBuf, string("core.uptime=%d", 10), getsec())
-      ser.txStr(portHndl[0], @txFmtBuf)
-      fmt.sFormatStr1(@txFmtBuf, string("core.uptime_ms=%d", 10), getms())
-      ser.txStr(portHndl[0], @txFmtBuf)
+      fstr1(string("core.uptime=%d", 10), getsec())
+      fstr1(string("core.uptime_ms=%d", 10), getms())
 
       ifnot core_status == S_OK
-        fmt.sFormatStr1(@txFmtBuf, string("core.error=%d", 10), core_status)
-        ser.txstr(portHndl[0], @txFmtBuf)
-        ser.txstr(portHndl[1], @txFmtBuf)
+        fstr1(string("core.error=%d", 10), core_status)
 
       tk_tm.start()
 
@@ -420,12 +421,9 @@ byte txFmtBuf[100]
       batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
       batt_1_status, batt_2_status := batt.get_statuses()
 
-      fmt.sFormatStr2(@txFmtBuf, string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
-      ser.txstr(portHndl[0], @txFmtBuf)
-      fmt.sFormatStr2(@txFmtBuf, string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
-      ser.txstr(portHndl[0], @txFmtBuf)
-      fmt.sFormatStr2(@txFmtBuf, string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
-      ser.txstr(portHndl[0], @txFmtBuf)
+      fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
+      fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
+      fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
       if sett.ENABLE_LCD and sett.LCD_LINES < 3
           if lcd_page == DP_HOME
@@ -545,26 +543,22 @@ byte txFmtBuf[100]
           bme.ERROR_NOT_NORMAL_MODE:
             core_status := S_BME_NOT_NORMAL_MODE
 
-        fmt.sFormatStr4(@txFmtBuf, string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
-        ser.txStr(portHndl[0], @txFmtBuf)
+        fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
 
 
     if mt_tm.millis() >= sett.MOTOR_STATE_UPD
       mt_tm.start()
       m1_stat, m2_stat := wheels.getStatus()
       m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
-      fmt.sFormatStr2(@txFmtBuf, string("motors.status=%d,%d", 10), m1_stat, m2_stat)
-      ser.txStr(portHndl[0], @txFmtBuf)
-      fmt.sFormatStr2(@txFmtBuf, string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
-      ser.txStr(portHndl[0], @txFmtBuf)
-      fmt.sFormatStr2(@txFmtBuf, string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
-      ser.txStr(portHndl[0], @txFmtBuf)
+      fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
+      fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
+      fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
 
     if serial_queue_has_data()
       s_tk.start()
 
       if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            ser.txStr(portHndl[0], string("connection.requesthandshake", 10))
+            tx(string("connection.requesthandshake", 10))
             handshake_requested := true
 
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
@@ -583,7 +577,7 @@ byte txFmtBuf[100]
         6:                                                                      ' core.tick
           ' Check if re-handshake required
           if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            ser.txStr(portHndl[0], string("connection.requesthandshake", 10))
+            tx(string("connection.requesthandshake", 10))
             handshake_requested := true
         7:                                                                      ' core.errors.clear
           core_status := S_OK
@@ -594,7 +588,7 @@ byte txFmtBuf[100]
           link_status := L_NO_LINK
         9:                                                                      ' connection.isready
           link_status := L_LINK_WAIT
-          ser.txStr(portHndl[0], string("ready", 10))
+          tx(string("ready", 10))
           ' handshake_requested := false
         10:                                                                     ' connection.ok
           link_status := L_LINKED
@@ -604,10 +598,10 @@ byte txFmtBuf[100]
           else
             robot_enabled := 0
           if str.atoi(@rxValueBuffer) == 1
-            ser.txStr(portHndl[0], string("core.enabled=true", 10))
+            tx(string("core.enabled=true", 10))
           else
             wheels.stopMotors()
-            ser.txStr(portHndl[0], string("core.enabled=false", 10))
+            tx(string("core.enabled=false", 10))
         12:                                                                     ' system.estop
           robot_enabled := 2
           core_status := S_ESTOP
@@ -686,13 +680,11 @@ byte txFmtBuf[100]
     else
       '' Non-critical tasks
 
-      if mp_tm.millis() > sett.MPU_SPEED
+      if mp_tm.millis() > sett.MPU_SPEED and mpu_device_present
         accel_x, accel_y, accel_z := mpu.readAccel()
         gyro_r, gyro_p, gyro_y := mpu.getRollPitchYaw()
-        fmt.sFormatStr3(@txFmtBuf, @"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
-        ser.txStr(portHndl[0], @txFmtBuf)
-        fmt.sFormatStr3(@txFmtBuf, @"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
-        ser.txStr(portHndl[0], @txFmtBuf)
+        fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
+        fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
 
       '' LCD Updates / Tick
 
@@ -784,6 +776,64 @@ byte txFmtBuf[100]
       elseif buzzer_active == 0
         beep.write(0)
 
+pri fstr1(str, arg0)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+
+  fmt.sFormatStr1(@txFmtBuf, str, arg0)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+
+pri fstr2(str, arg0, arg1)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  fmt.sFormatStr2(@txFmtBuf, str, arg0, arg1)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], @txFmtBuf)
+
+pri fstr3(str, arg0, arg1, arg2)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  fmt.sFormatStr3(@txFmtBuf, str, arg0, arg1, arg2)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], @txFmtBuf)
+
+pri fstr4(str, arg0, arg1, arg2, arg3)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  fmt.sFormatStr4(@txFmtBuf, str, arg0, arg1, arg2, arg3)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], @txFmtBuf)
+
+pri tx(str)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  ser.txStr(portHndl[0], str)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], str)
 
 pub emergency_stop()
 '' Emergency stop as many functions as possible
@@ -847,8 +897,7 @@ pub sensor_loop() | left, right, internal, owx_status, byte txFmtBuf[100]
     if ds_tm.millis() > sett.TEMP_SPEED
       left, right, internal := temp.read_temps()
       ser.txFlush(portHndl[0])
-      fmt.sFormatStr3(@txFmtBuf, string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
-      ser.txStr(portHndl[0], @txFmtBuf)
+      fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
 
 
@@ -1065,7 +1114,9 @@ pub setup()
 
   ' Serial
   portHndl[0] := ser.addPort(pins.RPI_RX, pins.RPI_TX, ser.MODE_NONE, sett.BR_SYSTEM, ser.PU_3K3)  ' start serial for system
-  portHndl[1] := ser.addPort(pins.RX1, pins.TX1, ser.MODE_NONE, sett.BR_TERM, ser.PU_3K3)  ' start serial for terminal
+
+  ifnot sett.TERM_MODE == sett.TMODE_NONE
+    portHndl[1] := ser.addPort(pins.RX1, pins.TX1, ser.MODE_NONE, sett.BR_TERM, ser.PU_3K3)  ' start serial for terminal
   serial_cog_id := ser.start()
 
   ' Voltmeter
@@ -1102,7 +1153,7 @@ pub setup()
     bme.sensor_config(bme.CONFIG_NAV_MODE)
 
   if sett.ENABLE_MPU
-    mpu.startx(pins.SCL, pins.SDA, -1, -1)
+    mpu_device_present := mpu.startx(pins.SCL, pins.SDA, -1, -1)
 
 
 pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor
