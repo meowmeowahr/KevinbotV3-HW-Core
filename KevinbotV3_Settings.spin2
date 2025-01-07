@@ -28,7 +28,8 @@ con { Kevinbot v3 Constant Settings }
 
   WAIT_FOR_TERM = false                                                         ' Require return key to be pressed on terminal before boot default=false
 
-  TERM_MODE     = TMODE_ALL_RELAY                                               ' Mode for PC terminal opertation
+  TERM_MODE     = TMODE_NONE                                                    ' Mode for PC terminal opertation
+  TERM_CRLF     = true                                                          ' Use CRLF instead of LF for line ending on pc terminal default = true
 
   '' Timings
   STARTUP_DELAY = 0                                                             ' Core startup delay default=0
