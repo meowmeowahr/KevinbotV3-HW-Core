@@ -378,11 +378,13 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   if sett.START_SOUND
     tone(50, 1000)
-    waitms(sett.BUZZER_SPEED)
+    waitms(sett.BUZZER_SPEED / 2)
     tone(40, 1500)
-    waitms(sett.BUZZER_SPEED)
+    waitms(sett.BUZZER_SPEED / 2)
     tone(50, 1700)
-    waitms(sett.BUZZER_SPEED)
+    waitms(sett.BUZZER_SPEED / 2)
+    tone(60, 900)
+    waitms(sett.BUZZER_SPEED / 2)
     tone(0, 1000)
 
   ' Cogs
