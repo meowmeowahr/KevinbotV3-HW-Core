@@ -118,6 +118,7 @@ con { Kevinbot v3 Constant Settings }
 
   '' mpu
   ENABLE_MPU         = true
+  MPU_DEBUG          = false
   MPU_SPEED          = 200
 
   '' Motion

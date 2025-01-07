@@ -43,3 +43,5 @@ KevinbotV3_Pinmap.spin2
 | char.type.spin2h          | Jesse Burt                 | MIT     |
 | math.float.nocog.spin2    | Chip Gracey                | MIT     |
 | P2-BLDC-Motor-Control     | Stephen Moraco             | MIT     |
+| isp_octoport_serial       | Stephen Moraco             | MIT     |
+| isp_mem_strings           | Stephen Moraco             | MIT     |

@@ -898,7 +898,8 @@ PUB readAccel() : x, y, z | ok, maxG
     x := (x * maxG * 1000) / 32768
     y := (y * maxG * 1000) / 32768
     z := (z * maxG * 1000) / 32768
-    debug("readAccel: ", uhex_word(x), uhex_word(y), uhex_word(z))
+    if bShowDebug
+      debug("readAccel: ", uhex_word(x), uhex_word(y), uhex_word(z))
 
     'if bShowDebug
     '    term.fstr6(string("* readAccelRaw() 3 WORDs x:0x%.04x (%d), y:0x%.04x (%d), z:0x%.04x (%d)' 10), x, x, y, y, z, z)

@@ -553,7 +553,6 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       m1_stat, m2_stat := wheels.getStatus()
       m1_pwr, m2_pwr := wheels.getPower()
       m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
-      debug(sdec_long_(m1_amp), sdec_long_(m1_watt))
       fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
       fstr2(string("motors.powers=%d,%d", 10), m1_pwr, m2_pwr)
       fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
@@ -1169,6 +1168,10 @@ pub setup()
 
   if sett.ENABLE_MPU
     mpu_device_present := mpu.startx(pins.SCL, pins.SDA, -1, -1)
+    if sett.MPU_DEBUG
+      mpu.enableDebug(true)
+    else
+      mpu.enableDebug(false)
 
 
 pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor
