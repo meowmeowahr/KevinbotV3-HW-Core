@@ -1019,7 +1019,7 @@ pri serial_queue_loop(pRxBffr, lenRxBffr)
     ' read serial input forever placing chars in RX Circ Queue
     repeat
         nTaskChr := ser.rxTime(portHndl[0], 1000)
-        if (nTaskChr <> -1)
+        if (nTaskChr <> ser.NO_CHAR)
             serial_enqueue_char(nTaskChr)
 
 
@@ -1206,25 +1206,6 @@ pri waitUntilMotorReady()
             else
                 waitms(2)
     debug("* Motors ready, let's drive!")
-
-
-PRI waitUntilMotorDone()
-    if wheels.isStarting() == false
-         debug("* wait until motors start...")
-         repeat
-            if wheels.isStarting()
-                quit
-            else
-                waitms(2)
-
-    if wheels.isStopped() == false
-        debug("* wait until motors finish...")
-        repeat
-            if wheels.isStopped()
-                quit
-            else
-                waitms(2)
-    debug("* Motors stopped!")
 
 
 pub wait_for_terminal(clear)

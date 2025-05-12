@@ -11,3 +11,6 @@ Error.txt
 
 #Pnut-TS
 *.bin
+
+# Spin-Tools
+*.log
