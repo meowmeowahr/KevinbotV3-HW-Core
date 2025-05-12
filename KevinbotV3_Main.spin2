@@ -255,9 +255,10 @@ obj
   l2_tm : "jm_ez_timer"                                                         '   Led timer
   l3_tm : "jm_ez_timer"                                                         '   Led timer
   mt_tm : "jm_ez_timer"                                                         '   Motor states timer
+  s_tk  : "jm_ez_timer"                                                         '   System tick timer
 
-  term  : "jm_fullduplexserial"                                                 ' * serial IO for terminal
-  sys   : "jm_fullduplexserial"                                                 ' * serial IO for Kevinbot System
+  ser   : "isp_octoport_serial"                                                 ' * Serial subsystem
+  fmt   : "isp_mem_strings"                                                     '   String formatter
   ansi  : "jm_ansi"                                                             '   ANSI terminal control sequences
 
 ' * uses cog when loaded
@@ -271,6 +272,9 @@ var { globals }
   byte robot_enabled
   byte handshake_requested
 
+  '' Octoserial Subsystem
+  byte txFmtBuf[100]
+
   '' Cogs
   byte sensor_cog_id
   long sensor_stack[128]
@@ -278,13 +282,14 @@ var { globals }
   byte rx_cog_id
   long taskStack[128]
 
+  '' Octoserial Subsystem
+  long  portHndl[2]                                                             ' pi, terminal = 2 ports
+
   '' Tick
   long  last_core_tick
-  long  last_system_tick
 
   '' Driver Init
-  byte  term_cog_id
-  byte  sys_serial_cog_id
+  byte  serial_cog_id
   byte  led_cog_id
   byte  lcd_init_status
   byte  servo_init_status
@@ -334,11 +339,14 @@ var { globals }
   long  light_update_body
   long  light_update_base
 
+  '' MPU
+  byte mpu_device_present
+
 
 
 pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
-accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, ...
-bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, ...
+accel_x, accel_y, accel_z, long gyro_r, long gyro_p, long gyro_y, mag_x, mag_y, mag_z, ...
+bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, m1_pwr, m2_pwr, ...
 long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   core_status := S_OK
@@ -355,6 +363,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   setup()
   setup_motion()
+  wheels.holdAtStop(true)
 
   waitms(sett.STARTUP_DELAY)
 
@@ -370,11 +379,13 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   if sett.START_SOUND
     tone(50, 1000)
-    waitms(100)
+    waitms(sett.BUZZER_SPEED / 2)
     tone(40, 1500)
-    waitms(100)
+    waitms(sett.BUZZER_SPEED / 2)
     tone(50, 1700)
-    waitms(100)
+    waitms(sett.BUZZER_SPEED / 2)
+    tone(60, 900)
+    waitms(sett.BUZZER_SPEED / 2)
     tone(0, 1000)
 
   ' Cogs
@@ -384,24 +395,25 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
   ' Start timers
   tk_tm.start()
   bt_tm.start()
+  s_tk.start()
 
   repeat
     ' Tick
     if tk_tm.millis() >= sett.TICK_SPEED
-      sys.fstr1(string("core.uptime=%d", 10), getsec())
-      sys.fstr1(string("core.uptime_ms=%d", 10), getms())
+      fstr1(string("core.uptime=%d", 10), getsec())
+      fstr1(string("core.uptime_ms=%d", 10), getms())
 
       ifnot core_status == S_OK
-        sys.fstr1(string("core.error=%d", 10), core_status)
+        fstr1(string("core.error=%d", 10), core_status)
 
       tk_tm.start()
 
-
     ' system tick errors / display
     if link_status == L_LINKED
-      if (last_system_tick < getms() - sett.SYSTEM_TICK - sett.SYS_TICK_TOL)
+      if (s_tk.millis() > sett.SYSTEM_TICK + sett.SYS_TICK_TOL)
         link_status := L_NO_LINK
         core_status := S_TICK_FAIL
+        s_tk.start()
 
     if link_status == L_NO_LINK
       wheels.stopMotors()
@@ -412,19 +424,15 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
       batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
       batt_1_status, batt_2_status := batt.get_statuses()
 
-      sys.fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
-      sys.fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
-      sys.fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+      fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
+      fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
+      fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
 
       if sett.ENABLE_LCD and sett.LCD_LINES < 3
           if lcd_page == DP_HOME
             if sett.LCD_BATT_MAIN
               case batt.get_count()
                 2:
-                  ' b1_str := nstr.dpdec(batt_1_voltage, 1)
-                  ' b2_str := nstr.dpdec(batt_2_voltage, 1)
-                  ' str.sprintf2(@lcd_buffer, string("B1:%s B2:%s"), b1_str, b2_str)
-                  ' disp.display_line(1, @lcd_buffer)
                   disp.clear_line(1)
                   disp.crsr_xy(0, 1)
                   disp.str(string("B1:"))
@@ -538,26 +546,30 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           bme.ERROR_NOT_NORMAL_MODE:
             core_status := S_BME_NOT_NORMAL_MODE
 
-        sys.fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+        fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+
 
     if mt_tm.millis() >= sett.MOTOR_STATE_UPD
       mt_tm.start()
       m1_stat, m2_stat := wheels.getStatus()
+      m1_pwr, m2_pwr := wheels.getPower()
       m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
-      sys.fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
-      sys.fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
-      sys.fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
+      fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
+      fstr2(string("motors.powers=%d,%d", 10), m1_pwr, m2_pwr)
+      fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
+      fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
 
     if serial_queue_has_data()
-      last_system_tick := getms()
+      s_tk.start()
+
       if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            sys.str(string("connection.requesthandshake", 10))
+            tx(string("connection.requesthandshake", 10))
             handshake_requested := true
 
       get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
       util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
       index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
-      case index
+      case_fast index
         1: pinh(str.atoi(@rxValueBuffer))                                       ' core.pinh
         2: pinl(str.atoi(@rxValueBuffer))                                       ' core.pinl
         3: pint(str.atoi(@rxValueBuffer))                                       ' core.pint
@@ -567,10 +579,10 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           buzzer_start_time := getms()
           buzzer_end_time := buzzer_start_time + str.atoi(@rxSubVal2Buffer)
           tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-        6:                                                                      ' system.tick
+        6:                                                                      ' core.tick
           ' Check if re-handshake required
           if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            sys.str(string("connection.requesthandshake", 10))
+            tx(string("connection.requesthandshake", 10))
             handshake_requested := true
         7:                                                                      ' core.errors.clear
           core_status := S_OK
@@ -581,7 +593,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           link_status := L_NO_LINK
         9:                                                                      ' connection.isready
           link_status := L_LINK_WAIT
-          sys.str(string("ready", 10))
+          tx(string("ready", 10))
           ' handshake_requested := false
         10:                                                                     ' connection.ok
           link_status := L_LINKED
@@ -591,10 +603,10 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
           else
             robot_enabled := 0
           if str.atoi(@rxValueBuffer) == 1
-            sys.str(string("core.enabled=true", 10))
+            tx(string("core.enabled=true", 10))
           else
             wheels.stopMotors()
-            sys.str(string("core.enabled=false", 10))
+            tx(string("core.enabled=false", 10))
         12:                                                                     ' system.estop
           robot_enabled := 2
           core_status := S_ESTOP
@@ -673,11 +685,11 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
     else
       '' Non-critical tasks
 
-      if mp_tm.millis() > sett.MPU_SPEED
+      if mp_tm.millis() > sett.MPU_SPEED and mpu_device_present
         accel_x, accel_y, accel_z := mpu.readAccel()
-        gyro_x, gyro_y, gyro_z := mpu.readGyro()
-        sys.fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_x, gyro_y, gyro_z)
-        sys.fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
+        gyro_r, gyro_p, gyro_y := mpu.getRollPitchYaw()
+        fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
+        fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
 
       '' LCD Updates / Tick
 
@@ -758,23 +770,91 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
         bz_tm.start()
 
         if buzzer_state == 0
-          tone(50, 1000)
-        elseif buzzer_state == 1
-          tone(75, 1500)
-        elseif buzzer_state == 2
           tone(50, 600)
+        elseif buzzer_state == 1
+          tone(75, 600)
+        elseif buzzer_state == 2
+          tone(50, 400)
         elseif buzzer_state > 2
           buzzer_state := -1
         buzzer_state += 1
       elseif buzzer_active == 0
         beep.write(0)
 
+pri fstr1(str, arg0)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+
+  fmt.sFormatStr1(@txFmtBuf, str, arg0)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+    if sett.TERM_CRLF
+      ser.tx(portHndl[1], 13)
+
+pri fstr2(str, arg0, arg1)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  fmt.sFormatStr2(@txFmtBuf, str, arg0, arg1)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], @txFmtBuf)
+    if sett.TERM_CRLF
+      ser.tx(portHndl[1], 13)
+
+pri fstr3(str, arg0, arg1, arg2)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  fmt.sFormatStr3(@txFmtBuf, str, arg0, arg1, arg2)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], @txFmtBuf)
+    if sett.TERM_CRLF
+      ser.tx(portHndl[1], 13)
+
+pri fstr4(str, arg0, arg1, arg2, arg3)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  fmt.sFormatStr4(@txFmtBuf, str, arg0, arg1, arg2, arg3)
+
+  ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], @txFmtBuf)
+    if sett.TERM_CRLF
+      ser.tx(portHndl[1], 13)
+
+pri tx(str)
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txFlush(portHndl[1])
+  ser.txFlush(portHndl[0])
+  ser.txStr(portHndl[0], str)
+
+  ' determine whether to relay to pc term
+  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
+    ser.txStr(portHndl[1], str)
+    if sett.TERM_CRLF
+      ser.tx(portHndl[1], 13)
 
 pub emergency_stop()
 '' Emergency stop as many functions as possible
 
-  sys.str(string("core.enabled=false", 10))
-  sys.txflush()
+  ser.txStr(portHndl[0], string("core.enabled=false", 10))
+  ser.txFlush(portHndl[0])
 
   leds.fill_head($00_00_00_00)
   leds.fill_body($00_00_00_00)
@@ -798,8 +878,7 @@ pub emergency_stop()
   waitms(50) ' settle down
   cogstop(rx_cog_id)
   cogstop(sensor_cog_id)
-  cogstop(term_cog_id)
-  cogstop(sys_serial_cog_id)
+  ser.stop()
   leds.stop()
   wheels.stop()
 
@@ -807,7 +886,7 @@ pub emergency_stop()
   repeat
     waitct(0)
 
-pub sensor_loop() | left, right, internal, owx_status
+pub sensor_loop() | left, right, internal, owx_status, byte txFmtBuf[100]
 
 '' Sensor update cog
 
@@ -832,8 +911,8 @@ pub sensor_loop() | left, right, internal, owx_status
   repeat
     if ds_tm.millis() > sett.TEMP_SPEED
       left, right, internal := temp.read_temps()
-      sys.txflush()
-      sys.fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
+      ser.txFlush(portHndl[0])
+      fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
       ds_tm.start()
 
 
@@ -939,8 +1018,8 @@ pri serial_queue_loop(pRxBffr, lenRxBffr)
 
     ' read serial input forever placing chars in RX Circ Queue
     repeat
-        nTaskChr := sys.rxtime(1000)
-        if (nTaskChr <> -1)
+        nTaskChr := ser.rxTime(portHndl[0], 1000)
+        if (nTaskChr <> ser.NO_CHAR)
             serial_enqueue_char(nTaskChr)
 
 
@@ -1049,9 +1128,11 @@ pub setup()
 '' Configure IO and objects for application
 
   ' Serial
-  ' term_cog_id := term.tstart(sett.BR_TERM)                                         ' start terminal io
-  term_cog_id := -1
-  sys_serial_cog_id := sys.start(pins.RPI_RX, pins.RPI_TX, %0000, sett.BR_SYSTEM)  ' start serial for system
+  portHndl[0] := ser.addPort(pins.RPI_RX, pins.RPI_TX, ser.MODE_NONE, sett.BR_SYSTEM, ser.PU_3K3)  ' start serial for system
+
+  ifnot sett.TERM_MODE == sett.TMODE_NONE
+    portHndl[1] := ser.addPort(pins.RX1, pins.TX1, ser.MODE_NONE, sett.BR_TERM, ser.PU_3K3)  ' start serial for terminal
+  serial_cog_id := ser.start()
 
   ' Voltmeter
   batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT, sett.BMS_CALIB)
@@ -1065,6 +1146,8 @@ pub setup()
   ' Servos
   if sett.ENABLE_PCA
     servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
+  else
+    servo_init_status := 1
 
   ' Status light
   if sett.ENABLE_RSL
@@ -1085,6 +1168,13 @@ pub setup()
   if sett.ENABLE_BME
     bme.setup(pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.BME_ADDR)
     bme.sensor_config(bme.CONFIG_NAV_MODE)
+
+  if sett.ENABLE_MPU
+    mpu_device_present := mpu.startx(pins.SCL, pins.SDA, -1, -1)
+    if sett.MPU_DEBUG
+      mpu.enableDebug(true)
+    else
+      mpu.enableDebug(false)
 
 
 pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor
@@ -1118,31 +1208,12 @@ pri waitUntilMotorReady()
     debug("* Motors ready, let's drive!")
 
 
-PRI waitUntilMotorDone()
-    if wheels.isStarting() == false
-         debug("* wait until motors start...")
-         repeat
-            if wheels.isStarting()
-                quit
-            else
-                waitms(2)
-
-    if wheels.isStopped() == false
-        debug("* wait until motors finish...")
-        repeat
-            if wheels.isStopped()
-                quit
-            else
-                waitms(2)
-    debug("* Motors stopped!")
-
-
 pub wait_for_terminal(clear)
 
 '' Wait for terminal to be open and key pressed
 
-  term.rxflush()
-  term.rx()
+  ser.rxFlush(portHndl[1])
+  ser.rx(portHndl[1])
   if (clear)
     clear_screen()
 
@@ -1152,9 +1223,9 @@ pub clear_screen()
 '' Move cursor home (upper left) and clear the terminal
 
   if (T_TYPE == T_PST)
-    term.tx(term.HOME)
-    term.tx(term.CLS)
+    ser.tx(portHndl[1], ser.HOME)
+    ser.tx(portHndl[1], ser.CLS)
   else
-    term.str(ansi.hide_cursor())
-    term.str(ansi.home())
-    term.str(ansi.cls())
+    ser.txStr(portHndl[1], ansi.hide_cursor())
+    ser.txStr(portHndl[1], ansi.home())
+    ser.txStr(portHndl[1], ansi.cls())

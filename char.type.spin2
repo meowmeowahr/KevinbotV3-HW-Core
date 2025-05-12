@@ -10,10 +10,6 @@
     --------------------------------------------
 }
 
-#ifndef TERMCODES_H
-#include "termcodes.spin2h"
-#endif
-
 PUB isalpha(ch): flag
 ' Test if character is alphabetic
 '   Returns: TRUE if alphabetic, FALSE otherwise
@@ -38,7 +34,7 @@ PUB isspace(ch): flag
 ' Test if character is a space (0x20), tab (\t) or newline (\n)
 '   ch: Character to be tested
 '   Returns: TRUE if ch is a space, tab or line-feed
-    return (lookdown(ch: " ", TB, LF) <> 0)
+    return (lookdown(ch: " ", 9, 10) <> 0)
 
 PUB isupper(ch): flag
 ' Test if character is uppercase

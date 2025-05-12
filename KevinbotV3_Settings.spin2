@@ -15,7 +15,7 @@
 con { Kevinbot v3 Constant Settings }
 
   '' Serial
-  BR_TERM       = 230400                                                        ' PC Terminal baud default=230400
+  BR_TERM       = 921600                                                        ' PC Terminal baud default=230400
   BR_SYSTEM     = 921600                                                        ' Kevinbot v3 baud default=624000
 
   RX_BUFF_BYTES = 8192                                                          ' System rx buffer size (bytes) default=1024
@@ -27,6 +27,9 @@ con { Kevinbot v3 Constant Settings }
   Q_OVERRUN_ERR = true
 
   WAIT_FOR_TERM = false                                                         ' Require return key to be pressed on terminal before boot default=false
+
+  TERM_MODE     = TMODE_NONE                                                    ' Mode for PC terminal opertation
+  TERM_CRLF     = true                                                          ' Use CRLF instead of LF for line ending on pc terminal default = true
 
   '' Timings
   STARTUP_DELAY = 0                                                             ' Core startup delay default=0
@@ -46,7 +49,7 @@ con { Kevinbot v3 Constant Settings }
 
   '' Status buzzer
   START_SOUND   = true                                                          ' Enable startup beeps default=true
-  BUZZER_SPEED  = 100                                                           ' Buzzer pdate speed. Control error beep speed. Typical tone will take 5x this in ms. default=100
+  BUZZER_SPEED  = 150                                                           ' Buzzer pdate speed. Control error beep speed. Typical tone will take 5x this in ms. default=100
 
   '' Display
   ENABLE_LCD    = true                                                          ' Enable PCF8574 i2c LCD display for errors and messages default=true
@@ -73,7 +76,7 @@ con { Kevinbot v3 Constant Settings }
   BATT_ERRORS   = false                                                          ' ONLY FOR DEBUGGING, DO NOT DISABLE FOR NORMAL OPERATION, disable over and undervoltage errors and disabling default=true
 
   '' Servos
-  ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true
+  ENABLE_PCA    = false                                                          ' Enable PCA9685 servo controller on i2c bus default=true
   PCA1_ADDR     = %1000_000_0                                                   ' Address of pca9685 running 0 ... 15 servo bank
   PCA2_ADDR     = %1000_001_0                                                   ' Address of pca9685 running 16 ... 31 servo bank
 
@@ -115,11 +118,14 @@ con { Kevinbot v3 Constant Settings }
 
   '' mpu
   ENABLE_MPU         = true
-  MPU_SPEED          = 1000
+  MPU_DEBUG          = false
+  MPU_SPEED          = 200
 
   '' Motion
   MOTOR_STATE_UPD   = 80
 
+con { enums }
+  #0, TMODE_TX_RELAY, TMODE_ALL_RELAY, TMODE_DEBUGTOOL, TMODE_NONE
 
 dat { Kevinbot v3 Constant Settings }
 

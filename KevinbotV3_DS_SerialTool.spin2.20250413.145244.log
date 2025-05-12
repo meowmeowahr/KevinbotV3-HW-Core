@@ -1,0 +1,55 @@
+Cog0  INIT $0000_0000 $0000_0000 load
+Cog0  INIT $0000_0F58 $0000_29BC jump
+Cog1  INIT $0000_1F00 $0000_267C load
+1-Wire Device ID
+
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
+[?25l[0;0H[2JSerial Number:
+-- 3B 20 32 C 49 8D 69 28 
+-- Good CRC
+-- DS18B20
+-- Programmable Resolution Digital Thermometer
