@@ -363,6 +363,7 @@ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
   setup()
   setup_motion()
+  wheels.holdAtStop(true)
 
   waitms(sett.STARTUP_DELAY)
 
@@ -1145,6 +1146,8 @@ pub setup()
   ' Servos
   if sett.ENABLE_PCA
     servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
+  else
+    servo_init_status := 1
 
   ' Status light
   if sett.ENABLE_RSL

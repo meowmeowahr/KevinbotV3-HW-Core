@@ -42,7 +42,7 @@ con { Kevinbot v3 Control Board }
   VOLT1_P       = 37 { I }                                                    ' voltage sensors
   VOLT2_P       = 38 { I }
 
-  ONE_WIRE      = 39 { IO }                                                   ' one wire bus
+  ONE_WIRE      = 5 { IO }                                                   ' one wire bus
 
   BUZZER_PIN    = 40 { O }                                                    ' alert buzzer
 

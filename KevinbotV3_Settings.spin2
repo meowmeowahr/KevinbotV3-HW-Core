@@ -76,7 +76,7 @@ con { Kevinbot v3 Constant Settings }
   BATT_ERRORS   = false                                                          ' ONLY FOR DEBUGGING, DO NOT DISABLE FOR NORMAL OPERATION, disable over and undervoltage errors and disabling default=true
 
   '' Servos
-  ENABLE_PCA    = true                                                          ' Enable PCA9685 servo controller on i2c bus default=true
+  ENABLE_PCA    = false                                                          ' Enable PCA9685 servo controller on i2c bus default=true
   PCA1_ADDR     = %1000_000_0                                                   ' Address of pca9685 running 0 ... 15 servo bank
   PCA2_ADDR     = %1000_001_0                                                   ' Address of pca9685 running 16 ... 31 servo bank
 
