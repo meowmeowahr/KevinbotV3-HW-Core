@@ -11,84 +11,85 @@
 ''
 '' =================================================================================================
 
+CON { timing }
 
-con { timing }
+    CLK_FREQ = 220_000_000                                                      ' system freq as a constant
+    MS_001 = CLK_FREQ / 1_000                                                   ' ticks in 1ms
+    US_001 = CLK_FREQ / 1_000_000                                               ' ticks in 1us
 
-  CLK_FREQ = 220_000_000                                                        ' system freq as a constant
-  MS_001   = CLK_FREQ / 1_000                                                   ' ticks in 1ms
-  US_001   = CLK_FREQ / 1_000_000                                               ' ticks in 1us
-
-  _clkfreq = CLK_FREQ                                                           ' set system clock
-
-
-con { terminal }
-
-  #0, T_PST, T_ANSI                                                             ' terminal types
-
-  T_TYPE = T_ANSI
+    _clkfreq = CLK_FREQ                                                         ' set system clock
 
 
-con { fixed io pins }
+CON { terminal }
 
-  PGM_RX1  = 63  { I }                                                          ' programming / debug
-  PGM_TX1  = 62  { O }
+    #0, T_PST, T_ANSI                                                           ' terminal types
 
-  SF_CS    = 61  { O }                                                          ' serial flash
-  SF_SCK   = 60  { O }
-  SF_SDO   = 59  { O }
-  SF_SDI   = 58  { I }
-
-  SD_SCK   = 61  { O }                                                          ' sd card
-  SD_CS    = 60  { O }
-  SD_SDO   = 59  { O }
-  SD_SDI   = 58  { I }
-
-  LED2     = 57  { O }                                                          ' Eval and Edge LEDs
-  LED1     = 56  { O }
-
-con
-
-  #true,  ON, OFF
-  #false, NO, YES
-
-  #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_PCA_INIT_FAIL, ...
-      S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP, S_BME_CHIP_ID, S_BME_CALIB_NVM, S_BME_CALIB_TP, ...
-      S_BME_CALIB_HUM, S_BME_THP, S_BME_MEAS_TIMEOUT, S_BME_NOT_NORMAL_MODE, ...
-      S_BATT1_UV, S_BATT1_OV, S_BATT2_UV, S_BATT2_OV, S_BATT_UV, S_BATT_OV
-
-  #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
-  #0, I_OFF, I_LINK, I_CHECK, I_ERROR
-  #0, DP_SPLASH, DP_COM, DP_ERROR, DP_HOME, DP_WAIT
+    T_TYPE = T_ANSI
 
 
-dat { Serial Queue }
+CON { fixed io pins }
+
+    PGM_RX1 = 63 { I }                                                          ' programming / debug
+    PGM_TX1 = 62 { O }
+
+    SF_CS = 61   { O }                                                          ' serial flash
+    SF_SCK = 60  { O }
+    SF_SDO = 59  { O }
+    SF_SDI = 58  { I }
+
+    SD_SCK = 61  { O }                                                          ' sd card
+    SD_CS = 60   { O }
+    SD_SDO = 59  { O }
+    SD_SDI = 58  { I }
+
+    LED2 = 57    { O }                                                          ' Eval and Edge LEDs
+    LED1 = 56    { O }
+
+CON
+
+    #true, ON, OFF
+    #false, NO, YES
+
+    #0, S_OK, S_UNKNOWN, S_OW_SHORT, S_OW_ERROR, S_OW_DNF, S_LCD_INIT_FAIL, S_PCA_INIT_FAIL, ...
+ S_TICK_FAIL, S_QUEUE_OVERRUN, S_ESTOP, S_BME_CHIP_ID, S_BME_CALIB_NVM, S_BME_CALIB_TP, ...
+ S_BME_CALIB_HUM, S_BME_THP, S_BME_MEAS_TIMEOUT, S_BME_NOT_NORMAL_MODE, ...
+ S_BATT1_UV, S_BATT1_OV, S_BATT2_UV, S_BATT2_OV, S_BATT_UV, S_BATT_OV
+
+    #0, L_LINKED, L_NO_LINK, L_LINK_WAIT
+    #0, I_OFF, I_LINK, I_CHECK, I_ERROR
+    #0, DP_SPLASH, DP_COM, DP_ERROR, DP_HOME, DP_WAIT
+
+    CMD_TERM = $FE
+    CMD_DELIM = $FA
+
+DAT { Serial Queue }
 
 ' user set variables at task init
-pRxByteStart            long    0
-nRxByteMax              long    0
+pRxByteStart    long    0
+nRxByteMax      long    0
 
 ' TASK use variables
 
-pRxByteHead             long    0                                               ' QUEUE control vars - received BYTEs
-nRxByteCount            long    0
+pRxByteHead     long    0                                                       ' QUEUE control vars - received BYTEs
+nRxByteCount    long    0
 
-bInString               long    FALSE
-pNewStrStart            long    0
+bInString       long    FALSE
+pNewStrStart    long    0
 
-pRsltStrStart           long    0
+pRsltStrStart   long    0
 
-bQueOverrun             long    FALSE
-bStrQueOverrun          long    FALSE
+bQueOverrun     long    FALSE
+bStrQueOverrun  long    FALSE
 
-nQStrHeadIdx            long    0                                               ' QUEUE control vars - received strings
-nQStrTailIdx            long    0
-nQStrCount              long    0
-rxStrPtrSet             long    0[sett.RX_BUFF_LONGS]                           ' circular buffer - ptrs to received strings
+nQStrHeadIdx    long    0                                                       ' QUEUE control vars - received strings
+nQStrTailIdx    long    0
+nQStrCount      long    0
+rxStrPtrSet     long    0[sett.RX_BUFF_LONGS]                                   ' circular buffer - ptrs to received strings
 
-serialRxBffr            byte    0[sett.RX_BUFF_BYTES]                           ' circular buffer - received chars
+serialRxBffr    byte    0[sett.RX_BUFF_BYTES]                                   ' circular buffer - received chars
 
 ' task vars
-nTaskChr                long    0
+nTaskChr        long    0
 ' tsk vars
 
             '   pValues -> [0:nbrValues(1-n)]  (doesn't count "full string")    ENT_VALUE_CT_IDX
@@ -102,851 +103,879 @@ nTaskChr                long    0
             '              [etc] - up to 6 max values
 
 
-dat
+DAT
 
-Version                 byte    "v3.0.0-beta", 0                                ' Core version
+Version         byte    "v3.0.0-beta", 0                                        ' Core version
 
-DisplayUnlinkLine0      byte    "Tick Error"            , 0
-DisplayUnlinkLine1      byte    "Tick not Recvd"        , 0
+DisplayUnlinkLine0
+                byte    "Tick Error", 0
+DisplayUnlinkLine1
+                byte    "Tick not Recvd", 0
 
-DisplayWaitingLine0     byte    "Please Wait..."        , 0
-DisplayWaitingLine1     byte    "Waiting for System"    , 0
+DisplayWaitingLine0
+                byte    "Please Wait...", 0
+DisplayWaitingLine1
+                byte    "Waiting for System", 0
 
-DisplayHomeEnaLine0     byte    "ROBOT ENABLED"         , 0
-DisplayHomeDisLine0     byte    "ROBOT DISABLED"        , 0
+DisplayHomeEnaLine0
+                byte    "ROBOT ENABLED", 0
+DisplayHomeDisLine0
+                byte    "ROBOT DISABLED", 0
 
-DisplayErrorLine0       byte    "System Error"          , 0
-DisplayErrorLine1       byte    "Error:"                , 0
+DisplayErrorLine0
+                byte    "System Error", 0
+DisplayErrorLine1
+                byte    "Error:", 0
 
-DisplayEstopLine0       byte    " EMERGENCY STOP "      , 0
-DisplayEstopLine1       byte    "Stop Requested"        , 0
+DisplayEstopLine0
+                byte    " EMERGENCY STOP ", 0
+DisplayEstopLine1
+                byte    "Stop Requested", 0
 
 ' command table
 Commands
-                        byte    "core.pinh"             , 0                     ' Simple IO
-                        byte    "core.pinl"             , 0
-                        byte    "core.pint"             , 0
-                        byte    "core.pinf"             , 0
-                        byte    "core.tone"             , 0
-                        byte    "core.tick"             , 0
-                        byte    "core.errors.clear"     , 0
-                        byte    "core.link.unlink"      , 0
-                        byte    "connection.isready"    , 0
-                        byte    "connection.ok"         , 0
-                        byte    "kevinbot.tryenable"    , 0
-                        byte    "system.estop"          , 0
-                        byte    "s"                     , 0
-                        byte    "servo.setraw"          , 0
-                        byte    "servo.all"             , 0
-                        byte    "servo.allraw"          , 0
-                        byte    "lighting.head.effect"  , 0
-                        byte    "lighting.head.color1"  , 0
-                        byte    "lighting.head.color2"  , 0
-                        byte    "lighting.head.update"  , 0
-                        byte    "lighting.head.bright"  , 0
-                        byte    "lighting.body.effect"  , 0
-                        byte    "lighting.body.color1"  , 0
-                        byte    "lighting.body.color2"  , 0
-                        byte    "lighting.body.update"  , 0
-                        byte    "lighting.body.bright"  , 0
-                        byte    "lighting.base.effect"  , 0
-                        byte    "lighting.base.color1"  , 0
-                        byte    "lighting.base.color2"  , 0
-                        byte    "lighting.base.update"  , 0
-                        byte    "lighting.base.bright"  , 0
-                        byte    "lighting.cam.bright"   , 0
-                        byte    "drive.power"           , 0
-                        byte    0
-
-NumCmds                 byte    33
-
-
-rxDataBuffer            byte    0[sett.RX_MAX_LINE]                             ' Buffers for serial rx
-rxCmdBuffer             byte    0[sett.RX_MAX_CMD]
-rxValueBuffer           byte    0[sett.RX_MAX_VAL]
-
-rxSubVal0Buffer         byte    0[sett.RX_MAX_SUBVAL]
-rxSubVal1Buffer         byte    0[sett.RX_MAX_SUBVAL]
-rxSubVal2Buffer         byte    0[sett.RX_MAX_SUBVAL]
-rxSubVal3Buffer         byte    0[sett.RX_MAX_SUBVAL]
-
-dat
-
-  NumHead       byte    6                                       ' number of commands in table
-
-  HeadEffMult   byte    0, 0, 500, 10, 200, 200                 ' effect speed multiplier
-
-  HeadEffects
-                byte    "color1"         , 0
-                byte    "color2"         , 0
-                byte    "flash"          , 0
-                byte    "fade"           , 0
-                byte    "jump3"          , 0
-                byte    "twinkle"        , 0
+                byte    $01, $01, 0                                                 ' pinh
+                byte    $01, $02, 0                                                 ' pinl
+                byte    $01, $03, 0                                                 ' pint
+                byte    $01, $04, 0                                                 ' pinf
+                byte    $02, $01, 0                                                 ' watchdog heartbeat
+                byte    $02, $02, 0                                                 ' clear faults
+                byte    $02, $03, 0                                                 ' unlink
+                byte    $02, $04, 0                                                 ' begin connection handshake
+                byte    $03, $05, 0                                                 ' end connection handshake
+                byte    $04, $01, 0                                                 ' enable
+                byte    $04, $02, 0                                                 ' e-stop
+                byte    $05, $01, 0                                                 ' set servo degrees
+                byte    $05, $02, 0                                                 ' set servo microseconds
+                byte    $05, $03, 0                                                 ' set all servo degrees
+                byte    $05, $04, 0                                                 ' set all servo microseconds
+                byte    $06, $01, 0                                                 ' lighting head effect
+                byte    $06, $02, 0                                                 ' lighting head color1
+                byte    $06, $03, 0                                                 ' lighting head color2
+                byte    $06, $04, 0                                                 ' lighting head update speed
+                byte    $06, $05, 0                                                 ' lighting head brghtness
+                byte    $06, $10, 0                                                 ' lighting body effect
+                byte    $06, $11, 0                                                 ' lighting body color1
+                byte    $06, $12, 0                                                 ' lighting body color2
+                byte    $07, $13, 0                                                 ' lighting body update speed
+                byte    $07, $14, 0                                                 ' lighting body brightness
+                byte    $07, $20, 0                                                 ' lighting base effect
+                byte    $07, $21, 0                                                 ' lighting base color1
+                byte    $07, $22, 0                                                 ' lighting base color2
+                byte    $07, $23, 0                                                 ' lighting base update speed
+                byte    $07, $24, 0                                                 ' lighting base brightness
+                byte    $07, $25, 0                                                 ' lighting camera brightness
+                byte    $08, $01, 0                                                 ' drive power
+                byte    $08, $02, 0                                                 ' drive dir
+                byte    $08, $03, 0                                                 ' drive hold
                 byte    0
 
-  NumBody       byte    10                                      ' number of commands in table
 
-  BodyEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
+NumCmds         byte    34
 
-  BodyEffects
-                byte    "color1"         , 0
-                byte    "color2"         , 0
-                byte    "flash"          , 0
-                byte    "fade"           , 0
-                byte    "jump3"          , 0
-                byte    "twinkle"        , 0
-                byte    "swipe"          , 0
-                byte    "rainbow"        , 0
-                byte    "magic"          , 0
-                byte    "fire"           , 0
+
+rxDataBuffer    byte    0[sett.RX_MAX_LINE]                                     ' Buffers for serial rx
+rxCmdBuffer     byte    0[sett.RX_MAX_CMD]
+rxValueBuffer   byte    0[sett.RX_MAX_VAL]
+
+rxSubVal0Buffer byte    0[sett.RX_MAX_SUBVAL]
+rxSubVal1Buffer byte    0[sett.RX_MAX_SUBVAL]
+rxSubVal2Buffer byte    0[sett.RX_MAX_SUBVAL]
+rxSubVal3Buffer byte    0[sett.RX_MAX_SUBVAL]
+
+DAT
+
+NumHead         byte    6                                       ' number of commands in table
+
+HeadEffMult     byte    0, 0, 500, 10, 200, 200                 ' effect speed multiplier
+
+HeadEffects
+                byte    "color1", 0
+                byte    "color2", 0
+                byte    "flash", 0
+                byte    "fade", 0
+                byte    "jump3", 0
+                byte    "twinkle", 0
                 byte    0
 
-  NumBase       byte    10                                      ' number of commands in table
+NumBody         byte    10                                      ' number of commands in table
 
-  BaseEffMult   byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
+BodyEffMult     byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
 
-  BaseEffects
-                byte    "color1"         , 0
-                byte    "color2"         , 0
-                byte    "flash"          , 0
-                byte    "fade"           , 0
-                byte    "jump3"          , 0
-                byte    "twinkle"        , 0
-                byte    "swipe"          , 0
-                byte    "rainbow"        , 0
-                byte    "magic"          , 0
-                byte    "fire"           , 0
+BodyEffects
+                byte    "color1", 0
+                byte    "color2", 0
+                byte    "flash", 0
+                byte    "fade", 0
+                byte    "jump3", 0
+                byte    "twinkle", 0
+                byte    "swipe", 0
+                byte    "rainbow", 0
+                byte    "magic", 0
+                byte    "fire", 0
                 byte    0
 
-obj
+NumBase         byte    10                                      ' number of commands in table
+
+BaseEffMult     byte    0, 0, 500, 10, 200, 200, 70, 5, 8, 7    ' effect speed multiplier
+
+BaseEffects
+                byte    "color1", 0
+                byte    "color2", 0
+                byte    "flash", 0
+                byte    "fade", 0
+                byte    "jump3", 0
+                byte    "twinkle", 0
+                byte    "swipe", 0
+                byte    "rainbow", 0
+                byte    "magic", 0
+                byte    "fire", 0
+                byte    0
+
+OBJ
 
 ' main                                                                          ' * master Spin cog
 
-  pins  : "KevinbotV3_Pinmap"                                                   '   Kevinbot v3 Board Pinouts
-  sett  : "KevinbotV3_Settings"                                                 '   Kevinbot v3 Static Settings
-  motc  : "P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig"                 '   Kevinbot v3 Motion Settings
+    pins : "KevinbotV3_Pinmap"                                                  '   Kevinbot v3 Board Pinouts
+    sett : "KevinbotV3_Settings"                                                '   Kevinbot v3 Static Settings
+    motc : "P2-BLDC-Motor-Control/src/isp_bldc_motor_userconfig"                '   Kevinbot v3 Motion Settings
 
-  wheels : "P2-BLDC-Motor-Control/src/isp_steering_2wheel.spin2"                '   the dual-drive BLDC motors
+    wheels : "P2-BLDC-Motor-Control/src/isp_steering_2wheel.spin2"              '   the dual-drive BLDC motors
 
-  batt  : "KevinbotV3_BatteryMgmt"                                              '   Kevinbot v3 Voltmeters and Battery Management
-  temp  : "KevinbotV3_Thermometers"                                             '   Kevinbot v3 DS18b20 thermometers
-  svo   : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
-  leds  : "KevinbotV3_Lighting"                                                 ' * Kevinbot v3 Lighting
-  bme   : "bme280_I2C"                                                          '   BME280 i2c sensor
-  mpu   : "ka_click_mpu_9dof"                                                   '   MPU9250 i2c sensor
+    batt : "KevinbotV3_BatteryMgmt"                                             '   Kevinbot v3 Voltmeters and Battery Management
+    temp : "KevinbotV3_Thermometers"                                            '   Kevinbot v3 DS18b20 thermometers
+    svo : "KevinbotV3_Servos"                                                   '   Kevinbot v3 Servo controllers
+    leds : "KevinbotV3_Lighting"                                                ' * Kevinbot v3 Lighting
+    bme : "bme280_I2C"                                                          '   BME280 i2c sensor
+    mpu : "ka_click_mpu_9dof"                                                   '   MPU9250 i2c sensor
 
-  util  : "ka_utils"                                                            '   Misc utility methods
-  str   : "string"                                                              '   String utilities
-  nstr  : "jm_nstr"                                                             '   String utilities (number-to-str)
+    util : "ka_utils"                                                           '   Misc utility methods
+    str : "string"                                                              '   String utilities
+    nstr : "jm_nstr"                                                            '   String utilities (number-to-str)
 
-  beep  : "jm_pwm"                                                              '   error buzzer pwm
-  rsl   : "KevinbotV3_StatusLight"                                              '   status light
-  disp  : "KevinbotV3_StatusDisplay"                                            '   status lcd
+    beep : "jm_pwm"                                                             '   error buzzer pwm
+    rsl : "KevinbotV3_StatusLight"                                              '   status light
+    disp : "KevinbotV3_StatusDisplay"                                           '   status lcd
 
-  tk_tm : "jm_ez_timer"                                                         '   Core tick timer
-  bt_tm : "jm_ez_timer"                                                         '   BMS update timer
-  ds_tm : "jm_ez_timer"                                                         '   DS18b20 update timer
-  dp_tm : "jm_ez_timer"                                                         '   Display update timer
-  bz_tm : "jm_ez_timer"                                                         '   Buzzer update timer
-  bm_tm : "jm_ez_timer"                                                         '   bme update timer
-  mp_tm : "jm_ez_timer"                                                         '   mpu update timer
-  l1_tm : "jm_ez_timer"                                                         '   Led timer
-  l2_tm : "jm_ez_timer"                                                         '   Led timer
-  l3_tm : "jm_ez_timer"                                                         '   Led timer
-  mt_tm : "jm_ez_timer"                                                         '   Motor states timer
-  s_tk  : "jm_ez_timer"                                                         '   System tick timer
+    tk_tm : "jm_ez_timer"                                                       '   Core tick timer
+    bt_tm : "jm_ez_timer"                                                       '   BMS update timer
+    ds_tm : "jm_ez_timer"                                                       '   DS18b20 update timer
+    dp_tm : "jm_ez_timer"                                                       '   Display update timer
+    bz_tm : "jm_ez_timer"                                                       '   Buzzer update timer
+    bm_tm : "jm_ez_timer"                                                       '   bme update timer
+    mp_tm : "jm_ez_timer"                                                       '   mpu update timer
+    l1_tm : "jm_ez_timer"                                                       '   Led timer
+    l2_tm : "jm_ez_timer"                                                       '   Led timer
+    l3_tm : "jm_ez_timer"                                                       '   Led timer
+    mt_tm : "jm_ez_timer"                                                       '   Motor states timer
+    s_tk : "jm_ez_timer"                                                        '   System tick timer
 
-  ser   : "isp_octoport_serial"                                                 ' * Serial subsystem
-  fmt   : "isp_mem_strings"                                                     '   String formatter
-  ansi  : "jm_ansi"                                                             '   ANSI terminal control sequences
+    ser : "isp_octoport_serial"                                                 ' * Serial subsystem
+    fmt : "isp_mem_strings"                                                     '   String formatter
+    ansi : "jm_ansi"                                                            '   ANSI terminal control sequences
 
 ' * uses cog when loaded
 
 
-var { globals }
+VAR { globals }
 
   '' States
-  byte core_status
-  byte link_status
-  byte robot_enabled
-  byte handshake_requested
+    byte core_status
+    byte link_status
+    byte robot_enabled
+    byte handshake_requested
 
   '' Octoserial Subsystem
-  byte txFmtBuf[100]
+    byte txFmtBuf[100]
 
   '' Cogs
-  byte sensor_cog_id
-  long sensor_stack[128]
+    byte sensor_cog_id
+    long sensor_stack[128]
 
-  byte rx_cog_id
-  long taskStack[128]
+    byte rx_cog_id
+    long taskStack[128]
 
   '' Octoserial Subsystem
-  long  portHndl[2]                                                             ' pi, terminal = 2 ports
+    long portHndl[2]                                                            ' pi, terminal = 2 ports
 
   '' Tick
-  long  last_core_tick
+    long last_core_tick
 
   '' Driver Init
-  byte  serial_cog_id
-  byte  led_cog_id
-  byte  lcd_init_status
-  byte  servo_init_status
+    byte serial_cog_id
+    byte led_cog_id
+    byte lcd_init_status
+    byte servo_init_status
 
   '' Batteries
-  word  batt_1_voltage
-  word  batt_2_voltage
-  word  batt_meter_1_voltage
-  word  batt_meter_2_voltage
-  byte  batt_1_status
-  byte  batt_2_status
+    word batt_1_voltage
+    word batt_2_voltage
+    word batt_meter_1_voltage
+    word batt_meter_2_voltage
+    byte batt_1_status
+    byte batt_2_status
 
   '' Temperatures
-  long left_motor_temp
-  long right_motor_temp
-  long internal_temp
+    long left_motor_temp
+    long right_motor_temp
+    long internal_temp
 
   '' Buzzer
-  long buzzer_start_time
-  long buzzer_end_time
+    long buzzer_start_time
+    long buzzer_end_time
 
   '' LCD
-  long lcd_icon_update_time
-  byte lcd_icon
-  byte lcd_page
+    long lcd_icon_update_time
+    byte lcd_icon
+    byte lcd_page
 
-  byte lcd_previous_icon
-  byte lcd_previous_page
+    byte lcd_previous_icon
+    byte lcd_previous_page
 
   '' Leds
-  long  head_color1
-  long  head_color2
-  byte  head_effect
-  byte  head_bright
+    long head_color1
+    long head_color2
+    byte head_effect
+    byte head_bright
 
-  long  body_color1
-  long  body_color2
-  byte  body_effect
-  byte  body_bright
+    long body_color1
+    long body_color2
+    byte body_effect
+    byte body_bright
 
-  long  base_color1
-  long  base_color2
-  byte  base_effect
-  byte  base_bright
+    long base_color1
+    long base_color2
+    byte base_effect
+    byte base_bright
 
-  long  light_update_head
-  long  light_update_body
-  long  light_update_base
+    long light_update_head
+    long light_update_body
+    long light_update_base
 
   '' MPU
-  byte mpu_device_present
+    byte mpu_device_present
 
 
 
-pub main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
-accel_x, accel_y, accel_z, long gyro_r, long gyro_p, long gyro_y, mag_x, mag_y, mag_z, ...
-bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, m1_pwr, m2_pwr, ...
-long m1_watt, long m2_watt, long m1_amp, long m2_amp
+PUB main() | b1_str, b2_str, index, lcd_previous_enabled, lcd_buffer, buzzer_state, buzzer_active, ...
+ accel_x, accel_y, accel_z, long gyro_r, long gyro_p, long gyro_y, mag_x, mag_y, mag_z, ...
+ bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi, m1_stat, m2_stat, m1_pwr, m2_pwr, ...
+ long m1_watt, long m2_watt, long m1_amp, long m2_amp
 
-  core_status := S_OK
-  link_status := L_NO_LINK
-  lcd_icon := I_LINK
-  lcd_page := DP_WAIT
-  lcd_previous_enabled := false
-  robot_enabled := false
-  handshake_requested := false
+    core_status := S_OK
+    link_status := L_NO_LINK
+    lcd_icon := I_LINK
+    lcd_page := DP_WAIT
+    lcd_previous_enabled := false
+    robot_enabled := false
+    handshake_requested := false
 
-  light_update_head, light_update_body, head_effect, body_effect := sett.S_LIGHT_UPDATE_HEAD, sett.S_LIGHT_UPDATE_BODY, sett.S_HEAD_EFFECT, sett.S_BODY_EFFECT
-  light_update_base, base_effect := sett.S_LIGHT_UPDATE_BASE, sett.S_BASE_EFFECT
-  body_bright, base_bright := sett.S_BODY_BRIGHTNESS, sett.S_BASE_BRIGHTNESS
+    light_update_head, light_update_body, head_effect, body_effect := sett.S_LIGHT_UPDATE_HEAD, sett.S_LIGHT_UPDATE_BODY, sett.S_HEAD_EFFECT, sett.S_BODY_EFFECT
+    light_update_base, base_effect := sett.S_LIGHT_UPDATE_BASE, sett.S_BASE_EFFECT
+    body_bright, base_bright := sett.S_BODY_BRIGHTNESS, sett.S_BASE_BRIGHTNESS
 
-  setup()
-  setup_motion()
-  wheels.holdAtStop(true)
+    setup()
+    setup_motion()
 
-  waitms(sett.STARTUP_DELAY)
+    waitms(sett.STARTUP_DELAY)
 
-  if sett.WAIT_FOR_TERM
-    wait_for_terminal(false)
+    if sett.WAIT_FOR_TERM
+        wait_for_terminal(false)
 
-  if lcd_init_status == 0
+    if lcd_init_status == 0
     ' lcd init failed
-    core_status := S_LCD_INIT_FAIL
+        core_status := S_LCD_INIT_FAIL
 
-  if servo_init_status == 0
-    core_status := S_PCA_INIT_FAIL
+    if servo_init_status == 0
+        core_status := S_PCA_INIT_FAIL
 
-  if sett.START_SOUND
-    tone(50, 1000)
-    waitms(sett.BUZZER_SPEED / 2)
-    tone(40, 1500)
-    waitms(sett.BUZZER_SPEED / 2)
-    tone(50, 1700)
-    waitms(sett.BUZZER_SPEED / 2)
-    tone(60, 900)
-    waitms(sett.BUZZER_SPEED / 2)
-    tone(0, 1000)
+    if sett.START_SOUND
+        tone(50, 1000)
+        waitms(sett.BUZZER_SPEED / 2)
+        tone(40, 1500)
+        waitms(sett.BUZZER_SPEED / 2)
+        tone(50, 1700)
+        waitms(sett.BUZZER_SPEED / 2)
+        tone(60, 900)
+        waitms(sett.BUZZER_SPEED / 2)
+        tone(0, 1000)
 
   ' Cogs
-  sensor_cog_id := cogspin(newcog, sensor_loop(), @sensor_stack)
-  rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
+    sensor_cog_id := cogspin(newcog, sensor_loop(), @sensor_stack)
+    rx_cog_id := cogspin(newcog, serial_queue_loop(@serialRxBffr, sett.RX_BUFF_BYTES), @taskStack)
 
   ' Start timers
-  tk_tm.start()
-  bt_tm.start()
-  s_tk.start()
+    tk_tm.start()
+    bt_tm.start()
+    s_tk.start()
 
-  repeat
+    repeat
     ' Tick
-    if tk_tm.millis() >= sett.TICK_SPEED
-      fstr1(string("core.uptime=%d", 10), getsec())
-      fstr1(string("core.uptime_ms=%d", 10), getms())
+        if tk_tm.millis() >= sett.TICK_SPEED
+            fstr1(string("core.uptime\250%d\254"), getsec())
+            fstr1(string("core.uptime_ms\250%d\254"), getms())
 
-      ifnot core_status == S_OK
-        fstr1(string("core.error=%d", 10), core_status)
+            ifnot core_status == S_OK
+                fstr1(string("core.error\250%d\254"), core_status)
 
-      tk_tm.start()
+            tk_tm.start()
 
     ' system tick errors / display
-    if link_status == L_LINKED
-      if (s_tk.millis() > sett.SYSTEM_TICK + sett.SYS_TICK_TOL)
-        link_status := L_NO_LINK
-        core_status := S_TICK_FAIL
-        s_tk.start()
+        if link_status == L_LINKED
+            if(s_tk.millis() > sett.SYSTEM_TICK + sett.SYS_TICK_TOL)
+                link_status := L_NO_LINK
+                core_status := S_TICK_FAIL
+                s_tk.start()
 
-    if link_status == L_NO_LINK
-      wheels.stopMotors()
+        if link_status == L_NO_LINK
+            wheels.stopMotors()
 
     ' Update battery data
-    if bt_tm.millis() >= sett.BATT_SPEED
-      batt_1_voltage, batt_2_voltage := batt.get_voltages()
-      batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
-      batt_1_status, batt_2_status := batt.get_statuses()
+        if bt_tm.millis() >= sett.BATT_SPEED
+            batt_1_voltage, batt_2_voltage := batt.get_voltages()
+            batt_meter_1_voltage, batt_meter_2_voltage := batt.get_raw_voltages()
+            batt_1_status, batt_2_status := batt.get_statuses()
 
-      fstr2(string("bms.voltages=%d,%d", 10), batt_1_voltage, batt_2_voltage)
-      fstr2(string("bms.raw_voltages=%d,%d", 10), batt_meter_1_voltage, batt_meter_2_voltage)
-      fstr2(string("bms.status=%d,%d", 10), batt_1_status, batt_2_status)
+            fstr2(string("bms.voltages\250%d,%d\254"), batt_1_voltage, batt_2_voltage)
+            fstr2(string("bms.raw_voltages\250%d,%d\254"), batt_meter_1_voltage, batt_meter_2_voltage)
+            fstr2(string("bms.status\250%d,%d\254"), batt_1_status, batt_2_status)
 
-      if sett.ENABLE_LCD and sett.LCD_LINES < 3
-          if lcd_page == DP_HOME
-            if sett.LCD_BATT_MAIN
-              case batt.get_count()
-                2:
-                  disp.clear_line(1)
-                  disp.crsr_xy(0, 1)
-                  disp.str(string("B1:"))
-                  disp.str(nstr.dpdec(batt_1_voltage, 1))
-                  disp.str(string(" B2:"))
-                  disp.str(nstr.dpdec(batt_2_voltage, 1))
+            if sett.ENABLE_LCD and sett.LCD_LINES < 3
+                if lcd_page == DP_HOME
+                    if sett.LCD_BATT_MAIN
+                        case batt.get_count()
+                            2:
+                                disp.clear_line(1)
+                                disp.crsr_xy(0, 1)
+                                disp.str(string("B1:"))
+                                disp.str(nstr.dpdec(batt_1_voltage, 1))
+                                disp.str(string(" B2:"))
+                                disp.str(nstr.dpdec(batt_2_voltage, 1))
 
-      if sett.BATT_ERRORS
-        if (batt_1_status == batt.S_UNDER) and (batt_2_status == batt.S_UNDER)
+            if sett.BATT_ERRORS
+                if(batt_1_status == batt.S_UNDER) and(batt_2_status == batt.S_UNDER)
           ' both batts are dead
-          core_status := S_BATT_UV
-        elseif (batt_1_status == batt.S_OVER) and (batt_2_status == batt.S_OVER)
+                    core_status := S_BATT_UV
+                elseif(batt_1_status == batt.S_OVER) and(batt_2_status == batt.S_OVER)
           ' both batts are over-volt
-          core_status := S_BATT_OV
-        elseif batt_1_status == batt.S_UNDER
+                    core_status := S_BATT_OV
+                elseif batt_1_status == batt.S_UNDER
           ' batt 1 is dead
-          core_status := S_BATT1_UV
-        elseif batt_1_status == batt.S_OVER
+                    core_status := S_BATT1_UV
+                elseif batt_1_status == batt.S_OVER
           ' batt 1 is over-volt
-          core_status := S_BATT1_OV
-        elseif batt_2_status == batt.S_UNDER
+                    core_status := S_BATT1_OV
+                elseif batt_2_status == batt.S_UNDER
           ' batt 2 is dead
-          core_status := S_BATT2_UV
-        elseif batt_2_status == batt.S_OVER
+                    core_status := S_BATT2_UV
+                elseif batt_2_status == batt.S_OVER
           ' batt 2 is over-volt
-          core_status := S_BATT2_OV
+                    core_status := S_BATT2_OV
 
-      bt_tm.start()
+            bt_tm.start()
 
     ' Update rsl
-    if sett.ENABLE_RSL
-      if (not core_status == S_OK) or (link_status == L_NO_LINK)
-        rsl.set_state(0)
-      elseif robot_enabled == 0
-        rsl.set_state(1)
-      elseif robot_enabled == 1
-        rsl.set_state(2)
+        if sett.ENABLE_RSL
+            if(not core_status == S_OK) or(link_status == L_NO_LINK)
+                rsl.set_state(0)
+            elseif robot_enabled == 0
+                rsl.set_state(1)
+            elseif robot_enabled == 1
+                rsl.set_state(2)
 
-      rsl.update()
+            rsl.update()
 
-    if l1_tm.millis() >= (light_update_head * byte[@HeadEffMult][head_effect-1]) / 100
-        l1_tm.start()
-        case head_effect
-          3:
-            leds.flash_head(head_color1, head_color2)
-          5:
-            leds.jump3_head()
-          4:
-            leds.fade_head(head_color1, head_color2)
-          6:
-            leds.twinkle_head(head_color1)
+        if l1_tm.millis() >= (light_update_head * byte[@HeadEffMult][head_effect - 1]) / 100
+            l1_tm.start()
+            case head_effect
+                3:
+                    leds.flash_head(head_color1, head_color2)
+                5:
+                    leds.jump3_head()
+                4:
+                    leds.fade_head(head_color1, head_color2)
+                6:
+                    leds.twinkle_head(head_color1)
 
-    if l2_tm.millis() >= (light_update_body * byte[@BodyEffMult][body_effect-1]) / 100
-      l2_tm.start()
-      case body_effect
-        3:
-          leds.flash_body(body_color1, body_color2)
-        5:
-          leds.jump3_body()
-        4:
-          leds.fade_body(body_color1, body_color2)
-        6:
-          leds.twinkle_body(body_color1)
-        7:
-          leds.swipe_body(body_color1, body_color2)
-        8:
-          leds.rainbow_cycle_body(body_bright)
-        9:
-          leds.magic_cycle_body(body_bright)
-        10:
-          leds.fire_cycle_body(body_bright)
+        if l2_tm.millis() >= (light_update_body * byte[@BodyEffMult][body_effect - 1]) / 100
+            l2_tm.start()
+            case body_effect
+                3:
+                    leds.flash_body(body_color1, body_color2)
+                5:
+                    leds.jump3_body()
+                4:
+                    leds.fade_body(body_color1, body_color2)
+                6:
+                    leds.twinkle_body(body_color1)
+                7:
+                    leds.swipe_body(body_color1, body_color2)
+                8:
+                    leds.rainbow_cycle_body(body_bright)
+                9:
+                    leds.magic_cycle_body(body_bright)
+                10:
+                    leds.fire_cycle_body(body_bright)
 
-    if l3_tm.millis() >= (light_update_base * byte[@BaseEffMult][base_effect-1]) / 100
-      l3_tm.start()
-      case base_effect
-        3:
-          leds.flash_base(base_color1, base_color2)
-        5:
-          leds.jump3_base()
-        4:
-          leds.fade_base(base_color1, base_color2)
-        6:
-          leds.twinkle_base(base_color1)
-        7:
-          leds.swipe_base(base_color1, base_color2)
-        8:
-          leds.rainbow_cycle_base(base_bright)
-        9:
-          leds.magic_cycle_base(base_bright)
-        10:
-          leds.fire_cycle_base(base_bright)
-
-
-    if sett.ENABLE_BME
-      if bm_tm.millis() >= sett.BME_SPEED
-        bm_tm.start()
-        bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi := bme.periodic_measurement()
-        case bme_return
-          bme.ERROR_CHIP_ID:
-            core_status := S_BME_CHIP_ID
-          bme.ERROR_CALIB_NVM:
-            core_status := S_BME_CALIB_NVM
-          bme.ERROR_CALIB_TP:
-            core_status := S_BME_CALIB_TP
-          bme.ERROR_CALIB_HUM:
-            core_status := S_BME_CALIB_HUM
-          bme.ERROR_THP:
-            core_status := S_BME_THP
-          bme.ERROR_MEAS_TIMEOUT:
-            core_status := S_BME_MEAS_TIMEOUT
-          bme.ERROR_NOT_NORMAL_MODE:
-            core_status := S_BME_NOT_NORMAL_MODE
-
-        fstr4(string("sensors.bme=%d,%d,%d,%d", 10), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
+        if l3_tm.millis() >= (light_update_base * byte[@BaseEffMult][base_effect - 1]) / 100
+            l3_tm.start()
+            case base_effect
+                3:
+                    leds.flash_base(base_color1, base_color2)
+                5:
+                    leds.jump3_base()
+                4:
+                    leds.fade_base(base_color1, base_color2)
+                6:
+                    leds.twinkle_base(base_color1)
+                7:
+                    leds.swipe_base(base_color1, base_color2)
+                8:
+                    leds.rainbow_cycle_base(base_bright)
+                9:
+                    leds.magic_cycle_base(base_bright)
+                10:
+                    leds.fire_cycle_base(base_bright)
 
 
-    if mt_tm.millis() >= sett.MOTOR_STATE_UPD
-      mt_tm.start()
-      m1_stat, m2_stat := wheels.getStatus()
-      m1_pwr, m2_pwr := wheels.getPower()
-      m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
-      fstr2(string("motors.status=%d,%d", 10), m1_stat, m2_stat)
-      fstr2(string("motors.powers=%d,%d", 10), m1_pwr, m2_pwr)
-      fstr2(string("motors.amps=%d,%d", 10), m1_amp, m2_amp)
-      fstr2(string("motors.watts=%d,%d", 10), m1_watt, m2_watt)
+        if sett.ENABLE_BME
+            if bm_tm.millis() >= sett.BME_SPEED
+                bm_tm.start()
+                bme_return, bme_celcius, bme_farenheit, bme_pressure, bme_humi := bme.periodic_measurement()
+                case bme_return
+                    bme.ERROR_CHIP_ID:
+                        core_status := S_BME_CHIP_ID
+                    bme.ERROR_CALIB_NVM:
+                        core_status := S_BME_CALIB_NVM
+                    bme.ERROR_CALIB_TP:
+                        core_status := S_BME_CALIB_TP
+                    bme.ERROR_CALIB_HUM:
+                        core_status := S_BME_CALIB_HUM
+                    bme.ERROR_THP:
+                        core_status := S_BME_THP
+                    bme.ERROR_MEAS_TIMEOUT:
+                        core_status := S_BME_MEAS_TIMEOUT
+                    bme.ERROR_NOT_NORMAL_MODE:
+                        core_status := S_BME_NOT_NORMAL_MODE
 
-    if serial_queue_has_data()
-      s_tk.start()
+                fstr4(string("sensors.bme\250%d,%d,%d,%d\254"), bme_celcius, bme_farenheit, bme_humi, bme_pressure)
 
-      if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            tx(string("connection.requesthandshake", 10))
-            handshake_requested := true
 
-      get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)              ' get and remove data from queue
-      util.split_str2(@rxDataBuffer, "=", @rxCmdBuffer, @rxValueBuffer)         ' get message from serial
-      index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                      ' get command index
-      case_fast index
-        1: pinh(str.atoi(@rxValueBuffer))                                       ' core.pinh
-        2: pinl(str.atoi(@rxValueBuffer))                                       ' core.pinl
-        3: pint(str.atoi(@rxValueBuffer))                                       ' core.pint
-        4: pinf(str.atoi(@rxValueBuffer))                                       ' core.pinf
-        5:                                                                      ' core.tone
-          util.split_str3(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer, @rxSubVal2Buffer)
-          buzzer_start_time := getms()
-          buzzer_end_time := buzzer_start_time + str.atoi(@rxSubVal2Buffer)
-          tone(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-        6:                                                                      ' core.tick
-          ' Check if re-handshake required
-          if (not (link_status == L_LINKED)) and (handshake_requested == false)
-            tx(string("connection.requesthandshake", 10))
-            handshake_requested := true
-        7:                                                                      ' core.errors.clear
-          core_status := S_OK
-          reset_serial_queue_status()
-        8:                                                                      ' core.link.unlink
-          if core_status == S_TICK_FAIL
-            core_status := S_OK
-          link_status := L_NO_LINK
-        9:                                                                      ' connection.isready
-          link_status := L_LINK_WAIT
-          tx(string("ready", 10))
+        if mt_tm.millis() >= sett.MOTOR_STATE_UPD
+            mt_tm.start()
+            m1_stat, m2_stat := wheels.getStatus()
+            m1_pwr, m2_pwr := wheels.getPower()
+            m1_amp, m1_watt, m2_amp, m2_watt := wheels.getCurrent()
+            fstr2(string("motors.status\250%d,%d\254"), m1_stat, m2_stat)
+            fstr2(string("motors.powers\250%d,%d\254"), m1_pwr, m2_pwr)
+            fstr2(string("motors.amps\250%d,%d\254"), m1_amp, m2_amp)
+            fstr2(string("motors.watts\250%d,%d\254"), m1_watt, m2_watt)
+
+        if serial_queue_has_data()
+            if(link_status <> L_LINKED) and(handshake_requested == false)
+                fstr0(string("connection.requesthandshake\254"))
+                handshake_requested := true
+
+            s_tk.start()
+
+            get_serial_queue_data(@rxDataBuffer, sett.RX_MAX_LINE, true)        ' get and remove data from queue
+            util.split_str2(@rxDataBuffer, CMD_DELIM, @rxCmdBuffer, @rxValueBuffer)   ' get message from serial
+            index := cmd_index(@rxCmdBuffer, @Commands, NumCmds)                ' get command index
+            case_fast index
+                1:
+                    pinh(str.atoi(@rxValueBuffer))                              ' core.pinh
+                2:
+                    pinl(str.atoi(@rxValueBuffer))                              ' core.pinl
+                3:
+                    pint(str.atoi(@rxValueBuffer))                              ' core.pint
+                4:
+                    pinf(str.atoi(@rxValueBuffer))                              ' core.pinf
+                5:                                                              ' core.tick
+                    ' nothing yet!
+                6:                                                              ' core.errors.clear
+                    core_status := S_OK
+                    reset_serial_queue_status()
+                7:                                                              ' core.link.unlink
+                    if core_status == S_TICK_FAIL
+                        core_status := S_OK
+                    link_status := L_NO_LINK
+                8:                                                              ' connection.isready
+                    link_status := L_LINK_WAIT
+                    tx(string("ready", 10))
           ' handshake_requested := false
-        10:                                                                     ' connection.ok
-          link_status := L_LINKED
-        11:                                                                     ' kevinbot.tryenable
-          if core_status == S_OK
-            robot_enabled := str.atoi(@rxValueBuffer)
-          else
-            robot_enabled := 0
-          if str.atoi(@rxValueBuffer) == 1
-            tx(string("core.enabled=true", 10))
-          else
-            wheels.stopMotors()
-            tx(string("core.enabled=false", 10))
-        12:                                                                     ' system.estop
-          robot_enabled := 2
-          core_status := S_ESTOP
-          emergency_stop()
-        13:                                                                     ' s
-          util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
-          svo.set_position(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-        14:                                                                     ' servo.setraw
-          util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
-          svo.set_position_us(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-        15:                                                                     ' servo.all
-          svo.set_all_position(str.atoi(@rxValueBuffer))
-        16:                                                                     ' servo.allraw
-          svo.set_all_position_us(str.atoi(@rxValueBuffer))
-        17:                                                                     ' lighting.head.effect
-            head_effect := cmd_index(@rxValueBuffer, @HeadEffects, NumHead)
-            if head_effect == 1
-              leds.fill_head(head_color1)
-            elseif head_effect == 2
-              leds.fill_head(head_color2)
-        18:                                                                     ' lighting.head.color1
-          head_color1 := util.hex2val(@rxValueBuffer)
-            if head_effect == 1
-              leds.fill_head(head_color1)
-        19:                                                                     ' lighting.head.color2
-          head_color2 := util.hex2val(@rxValueBuffer)
-            if head_effect == 2
-              leds.fill_head(head_color2)
-        20:                                                                     ' lighting.head.update
-          light_update_head := str.atoi(@rxValueBuffer)
-        21:                                                                     ' lighting.head.bright
-          head_bright := str.atoi(@rxValueBuffer)
-        22:                                                                     ' lighting.body.effect
-            body_effect := cmd_index(@rxValueBuffer, @BodyEffects, NumBody)
-            if body_effect == 1
-              leds.fill_body(body_color1)
-            elseif body_effect == 2
-              leds.fill_body(body_color2)
-        23:                                                                     ' lighting.body.color1
-          body_color1 := util.hex2val(@rxValueBuffer)
-            if body_effect == 1
-              leds.fill_body(body_color1)
-        24:                                                                     ' lighting.body.color2
-          body_color2 := util.hex2val(@rxValueBuffer)
-            if body_effect == 2
-              leds.fill_body(body_color2)
-        25:                                                                     ' lighting.body.update
-          light_update_body := str.atoi(@rxValueBuffer)
-        26:                                                                     ' lighting.body.bright
-          body_bright := str.atoi(@rxValueBuffer)
-        27:                                                                     ' lighting.base.effect
-            base_effect := cmd_index(@rxValueBuffer, @BaseEffects, NumBase)
-            if base_effect == 1
-              leds.fill_base(base_color1)
-            elseif base_effect == 2
-              leds.fill_base(base_color2)
-        28:                                                                     ' lighting.base.color1
-          base_color1 := util.hex2val(@rxValueBuffer)
-            if base_effect == 1
-              leds.fill_base(base_color1)
-        29:                                                                     ' lighting.base.color2
-          base_color2 := util.hex2val(@rxValueBuffer)
-            if base_effect == 2
-              leds.fill_base(base_color2)
-        30:                                                                     ' lighting.base.update
-          light_update_base := str.atoi(@rxValueBuffer)
-        31:                                                                     ' lighting.base.bright
-          base_bright := str.atoi(@rxValueBuffer)
-        32:                                                                     ' lighting.base.color1
-          leds.fill_camx(sett.CAM_COLOR, str.atoi(@rxValueBuffer))
-        33:                                                                     ' drive.power
-          if robot_enabled
-            util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
-            wheels.driveAtPower(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
-
-    else
+                9:                                                             ' connection.ok
+                    link_status := L_LINKED
+                10:                                                             ' kevinbot.tryenable
+                    if core_status == S_OK
+                        robot_enabled := str.atoi(@rxValueBuffer)
+                    else
+                        robot_enabled := 0
+                    if str.atoi(@rxValueBuffer) == 1
+                        fstr0(string("core.enabled\250true\254"))
+                    else
+                        wheels.stopMotors()
+                        fstr0(string("core.enabled\250false\254"))
+                11:                                                             ' system.estop
+                    robot_enabled := 2
+                    core_status := S_ESTOP
+                    emergency_stop()
+                12:                                                             ' s
+                    util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+                    svo.set_position(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+                13:                                                             ' servo.setraw
+                    util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+                    svo.set_position_us(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+                14:                                                             ' servo.all
+                    svo.set_all_position(str.atoi(@rxValueBuffer))
+                15:                                                             ' servo.allraw
+                    svo.set_all_position_us(str.atoi(@rxValueBuffer))
+                16:                                                             ' lighting.head.effect
+                    head_effect := cmd_index(@rxValueBuffer, @HeadEffects, NumHead)
+                    if head_effect == 1
+                        leds.fill_head(head_color1)
+                    elseif head_effect == 2
+                        leds.fill_head(head_color2)
+                17:                                                             ' lighting.head.color1
+                    head_color1 := util.hex2val(@rxValueBuffer)
+                    if head_effect == 1
+                        leds.fill_head(head_color1)
+                18:                                                             ' lighting.head.color2
+                    head_color2 := util.hex2val(@rxValueBuffer)
+                    if head_effect == 2
+                        leds.fill_head(head_color2)
+                19:                                                             ' lighting.head.update
+                    light_update_head := str.atoi(@rxValueBuffer)
+                20:                                                             ' lighting.head.bright
+                    head_bright := str.atoi(@rxValueBuffer)
+                21:                                                             ' lighting.body.effect
+                    body_effect := cmd_index(@rxValueBuffer, @BodyEffects, NumBody)
+                    if body_effect == 1
+                        leds.fill_body(body_color1)
+                    elseif body_effect == 2
+                        leds.fill_body(body_color2)
+                22:                                                             ' lighting.body.color1
+                    body_color1 := util.hex2val(@rxValueBuffer)
+                    if body_effect == 1
+                        leds.fill_body(body_color1)
+                23:                                                             ' lighting.body.color2
+                    body_color2 := util.hex2val(@rxValueBuffer)
+                    if body_effect == 2
+                        leds.fill_body(body_color2)
+                24:                                                             ' lighting.body.update
+                    light_update_body := str.atoi(@rxValueBuffer)
+                25:                                                             ' lighting.body.bright
+                    body_bright := str.atoi(@rxValueBuffer)
+                26:                                                             ' lighting.base.effect
+                    base_effect := cmd_index(@rxValueBuffer, @BaseEffects, NumBase)
+                    if base_effect == 1
+                        leds.fill_base(base_color1)
+                    elseif base_effect == 2
+                        leds.fill_base(base_color2)
+                27:                                                             ' lighting.base.color1
+                    base_color1 := util.hex2val(@rxValueBuffer)
+                    if base_effect == 1
+                        leds.fill_base(base_color1)
+                28:                                                             ' lighting.base.color2
+                    base_color2 := util.hex2val(@rxValueBuffer)
+                    if base_effect == 2
+                        leds.fill_base(base_color2)
+                29:                                                             ' lighting.base.update
+                    light_update_base := str.atoi(@rxValueBuffer)
+                30:                                                             ' lighting.base.bright
+                    base_bright := str.atoi(@rxValueBuffer)
+                31:                                                             ' lighting.base.color1
+                    leds.fill_camx(sett.CAM_COLOR, str.atoi(@rxValueBuffer))
+                32:                                                             ' drive.power
+                    if robot_enabled
+                        util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+                        wheels.driveAtPower(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+                33:                                                             ' drive.direction
+                    if robot_enabled
+                        util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+                        wheels.driveDirection(str.atoi(@rxSubVal0Buffer), str.atoi(@rxSubVal1Buffer))
+                34:                                                             ' drive.hold
+                    util.split_str2(@rxValueBuffer, ",", @rxSubVal0Buffer, @rxSubVal1Buffer)
+                    wheels.holdAtStop(str.atoi(@rxValueBuffer) > 0)
+        else
       '' Non-critical tasks
 
-      if mp_tm.millis() > sett.MPU_SPEED and mpu_device_present
-        accel_x, accel_y, accel_z := mpu.readAccel()
-        gyro_r, gyro_p, gyro_y := mpu.getRollPitchYaw()
-        fstr3(@"sensors.gyro=%d,%d,%d\n", gyro_r, gyro_p, gyro_y)
-        fstr3(@"sensors.accel=%d,%d,%d\n", accel_x, accel_y, accel_z)
+            if mp_tm.millis() > sett.MPU_SPEED and mpu_device_present
+                accel_x, accel_y, accel_z := mpu.readAccel()
+                gyro_r, gyro_p, gyro_y := mpu.getRollPitchYaw()
+                fstr3(@"sensors.gyro\250%d,%d,%d\254", gyro_r, gyro_p, gyro_y)
+                fstr3(@"sensors.accel\250%d,%d,%d\254", accel_x, accel_y, accel_z)
 
       '' LCD Updates / Tick
 
-      if sett.ENABLE_LCD
-        if link_status == L_LINK_WAIT
-          lcd_page := DP_WAIT
-        elseif core_status == S_TICK_FAIL
-          lcd_page := DP_COM
-        elseifnot core_status == S_OK
-          lcd_page := DP_ERROR
-        elseif link_status == L_NO_LINK
-          lcd_page := DP_WAIT
-        else
-          lcd_page := DP_HOME
+            if sett.ENABLE_LCD
+                if link_status == L_LINK_WAIT
+                    lcd_page := DP_WAIT
+                elseif core_status == S_TICK_FAIL
+                    lcd_page := DP_COM
+                elseifnot core_status == S_OK
+                    lcd_page := DP_ERROR
+                elseif link_status == L_NO_LINK
+                    lcd_page := DP_WAIT
+                else
+                    lcd_page := DP_HOME
 
       ' if error, set lcd icon
-      if (link_status == L_LINK_WAIT) or (lcd_page == DP_WAIT)
-          lcd_icon := I_LINK
-      elseif core_status == S_OK
-          lcd_icon := I_CHECK
-      else
-          lcd_icon := I_ERROR
+            if(link_status == L_LINK_WAIT) or(lcd_page == DP_WAIT)
+                lcd_icon := I_LINK
+            elseif core_status == S_OK
+                lcd_icon := I_CHECK
+            else
+                lcd_icon := I_ERROR
 
       ' lcd loop every sett.DISP_SPEED ms
-      if sett.ENABLE_LCD
-        if dp_tm.millis() >= sett.DISP_SPEED
-          if (not lcd_icon == lcd_previous_icon) or (not lcd_page == lcd_previous_page) or (not lcd_previous_enabled == robot_enabled)
-            lcd_previous_enabled := robot_enabled
-            disp.clear()
+            if sett.ENABLE_LCD
+                if dp_tm.millis() >= sett.DISP_SPEED
+                    if(not lcd_icon == lcd_previous_icon) or(not lcd_page == lcd_previous_page) or(not lcd_previous_enabled == robot_enabled)
+                        lcd_previous_enabled := robot_enabled
+                        disp.clear()
 
             ' LCD pages
-            if lcd_page == DP_COM
-              disp.display_main_lines(@DisplayUnlinkLine0, @DisplayUnlinkLine1)
-            elseif lcd_page == DP_WAIT
-              disp.display_main_lines(@DisplayWaitingLine0, @DisplayWaitingLine1)
-            elseif lcd_page == DP_HOME
-              if robot_enabled
-                disp.display_line(0, @DisplayHomeEnaLine0)
-              else
-                disp.display_line(0, @DisplayHomeDisLine0)
+                        if lcd_page == DP_COM
+                            disp.display_main_lines(@DisplayUnlinkLine0, @DisplayUnlinkLine1)
+                        elseif lcd_page == DP_WAIT
+                            disp.display_main_lines(@DisplayWaitingLine0, @DisplayWaitingLine1)
+                        elseif lcd_page == DP_HOME
+                            if robot_enabled
+                                disp.display_line(0, @DisplayHomeEnaLine0)
+                            else
+                                disp.display_line(0, @DisplayHomeDisLine0)
 
-            elseif lcd_page == DP_ERROR
-              bytefill(@lcd_buffer, 0, strsize(@lcd_buffer))
-              str.append(@lcd_buffer, @DisplayErrorLine1)
-              str.append(@lcd_buffer, str.dec(core_status))
-              disp.display_main_lines(@DisplayErrorLine0, @lcd_buffer)
-            dp_tm.start()
-            lcd_previous_icon := lcd_icon
-            lcd_previous_page := lcd_page
+                        elseif lcd_page == DP_ERROR
+                            bytefill(@lcd_buffer, 0, strsize(@lcd_buffer))
+                            str.append(@lcd_buffer, @DisplayErrorLine1)
+                            str.append(@lcd_buffer, str.dec(core_status))
+                            disp.display_main_lines(@DisplayErrorLine0, @lcd_buffer)
+                        dp_tm.start()
+                        lcd_previous_icon := lcd_icon
+                        lcd_previous_page := lcd_page
 
         ' set lcd icons, animate outside of loop
-        case lcd_icon
-          I_OFF:
-            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-              lcd_icon_update_time := getms()
-              disp.display_status_icon(disp.CC_NONE)
+                case lcd_icon
+                    I_OFF:
+                        if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+                            lcd_icon_update_time := getms()
+                            disp.display_status_icon(disp.CC_NONE)
 
-          I_LINK:
-            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-              lcd_icon_update_time := getms()
-              if disp.get_lcd_icon() == disp.CC_REFRESH_1
-                disp.display_status_icon(disp.CC_REFRESH_2)
-              else
-                disp.display_status_icon(disp.CC_REFRESH_1)
+                    I_LINK:
+                        if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+                            lcd_icon_update_time := getms()
+                            if disp.get_lcd_icon() == disp.CC_REFRESH_1
+                                disp.display_status_icon(disp.CC_REFRESH_2)
+                            else
+                                disp.display_status_icon(disp.CC_REFRESH_1)
 
-          I_CHECK:
-            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-              lcd_icon_update_time := getms()
-              disp.display_status_icon(disp.CC_CHECK)
+                    I_CHECK:
+                        if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+                            lcd_icon_update_time := getms()
+                            disp.display_status_icon(disp.CC_CHECK)
 
-          I_ERROR:
-            if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
-              lcd_icon_update_time := getms()
-              disp.display_status_icon(disp.CC_ERROR)
+                    I_ERROR:
+                        if lcd_icon_update_time < getms() - sett.LCD_ICON_SPD
+                            lcd_icon_update_time := getms()
+                            disp.display_status_icon(disp.CC_ERROR)
 
-      buzzer_active := not core_status == S_OK
-      if (buzzer_active) and (bz_tm.millis() > sett.BUZZER_SPEED)
-        bz_tm.start()
+            buzzer_active := not core_status == S_OK
+            if(buzzer_active) and(bz_tm.millis() > sett.BUZZER_SPEED)
+                bz_tm.start()
 
-        if buzzer_state == 0
-          tone(50, 600)
-        elseif buzzer_state == 1
-          tone(75, 600)
-        elseif buzzer_state == 2
-          tone(50, 400)
-        elseif buzzer_state > 2
-          buzzer_state := -1
-        buzzer_state += 1
-      elseif buzzer_active == 0
-        beep.write(0)
+                if buzzer_state == 0
+                    tone(50, 600)
+                elseif buzzer_state == 1
+                    tone(75, 600)
+                elseif buzzer_state == 2
+                    tone(50, 400)
+                elseif buzzer_state > 2
+                    buzzer_state := -1
+                buzzer_state += 1
+            elseif buzzer_active == 0
+                beep.write(0)
 
-pri fstr1(str, arg0)
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txFlush(portHndl[1])
-  ser.txFlush(portHndl[0])
+PRI fstr0(str)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+    ser.txFlush(portHndl[0])
 
-  fmt.sFormatStr1(@txFmtBuf, str, arg0)
+    fmt.sFormatStr0(@txFmtBuf, str)
 
-  ser.txStr(portHndl[0], @txFmtBuf)
-
-  ' determine whether to relay to pc term
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txFlush(portHndl[1])
-    if sett.TERM_CRLF
-      ser.tx(portHndl[1], 13)
-
-pri fstr2(str, arg0, arg1)
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txFlush(portHndl[1])
-  ser.txFlush(portHndl[0])
-  fmt.sFormatStr2(@txFmtBuf, str, arg0, arg1)
-
-  ser.txStr(portHndl[0], @txFmtBuf)
+    ser.txStr(portHndl[0], @txFmtBuf)
 
   ' determine whether to relay to pc term
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txStr(portHndl[1], @txFmtBuf)
-    if sett.TERM_CRLF
-      ser.tx(portHndl[1], 13)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+        if sett.TERM_CRLF
+            ser.tx(portHndl[1], 13)
 
-pri fstr3(str, arg0, arg1, arg2)
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txFlush(portHndl[1])
-  ser.txFlush(portHndl[0])
-  fmt.sFormatStr3(@txFmtBuf, str, arg0, arg1, arg2)
+PRI fstr1(str, arg0)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+    ser.txFlush(portHndl[0])
 
-  ser.txStr(portHndl[0], @txFmtBuf)
+    fmt.sFormatStr1(@txFmtBuf, str, arg0)
 
-  ' determine whether to relay to pc term
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txStr(portHndl[1], @txFmtBuf)
-    if sett.TERM_CRLF
-      ser.tx(portHndl[1], 13)
-
-pri fstr4(str, arg0, arg1, arg2, arg3)
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txFlush(portHndl[1])
-  ser.txFlush(portHndl[0])
-  fmt.sFormatStr4(@txFmtBuf, str, arg0, arg1, arg2, arg3)
-
-  ser.txStr(portHndl[0], @txFmtBuf)
+    ser.txStr(portHndl[0], @txFmtBuf)
 
   ' determine whether to relay to pc term
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txStr(portHndl[1], @txFmtBuf)
-    if sett.TERM_CRLF
-      ser.tx(portHndl[1], 13)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+        if sett.TERM_CRLF
+            ser.tx(portHndl[1], 13)
 
-pri tx(str)
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txFlush(portHndl[1])
-  ser.txFlush(portHndl[0])
-  ser.txStr(portHndl[0], str)
+PRI fstr2(str, arg0, arg1)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+    ser.txFlush(portHndl[0])
+    fmt.sFormatStr2(@txFmtBuf, str, arg0, arg1)
+
+    ser.txStr(portHndl[0], @txFmtBuf)
 
   ' determine whether to relay to pc term
-  if (sett.TERM_MODE == sett.TMODE_ALL_RELAY) or (sett.TERM_MODE == sett.TMODE_TX_RELAY)
-    ser.txStr(portHndl[1], str)
-    if sett.TERM_CRLF
-      ser.tx(portHndl[1], 13)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txStr(portHndl[1], @txFmtBuf)
+        if sett.TERM_CRLF
+            ser.tx(portHndl[1], 13)
 
-pub emergency_stop()
+PRI fstr3(str, arg0, arg1, arg2)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+    ser.txFlush(portHndl[0])
+    fmt.sFormatStr3(@txFmtBuf, str, arg0, arg1, arg2)
+
+    ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txStr(portHndl[1], @txFmtBuf)
+        if sett.TERM_CRLF
+            ser.tx(portHndl[1], 13)
+
+PRI fstr4(str, arg0, arg1, arg2, arg3)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+    ser.txFlush(portHndl[0])
+    fmt.sFormatStr4(@txFmtBuf, str, arg0, arg1, arg2, arg3)
+
+    ser.txStr(portHndl[0], @txFmtBuf)
+
+  ' determine whether to relay to pc term
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txStr(portHndl[1], @txFmtBuf)
+        if sett.TERM_CRLF
+            ser.tx(portHndl[1], 13)
+
+PRI tx(str)
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txFlush(portHndl[1])
+    ser.txFlush(portHndl[0])
+    ser.txStr(portHndl[0], str)
+
+  ' determine whether to relay to pc term
+    if(sett.TERM_MODE == sett.TMODE_ALL_RELAY) or(sett.TERM_MODE == sett.TMODE_TX_RELAY)
+        ser.txStr(portHndl[1], str)
+        if sett.TERM_CRLF
+            ser.tx(portHndl[1], 13)
+
+PUB emergency_stop()
 '' Emergency stop as many functions as possible
 
-  ser.txStr(portHndl[0], string("core.enabled=false", 10))
-  ser.txFlush(portHndl[0])
+    ser.txStr(portHndl[0], string("core.enabled\250false\254"))
+    ser.txFlush(portHndl[0])
 
-  leds.fill_head($00_00_00_00)
-  leds.fill_body($00_00_00_00)
-  leds.fill_base($00_00_00_00)
-  leds.fill_cam($00_00_00_00)
+    leds.fill_head($00_00_00_00)
+    leds.fill_body($00_00_00_00)
+    leds.fill_base($00_00_00_00)
+    leds.fill_cam($00_00_00_00)
 
-  wheels.emergencyCutoff()
-  svo.kill()
+    wheels.emergencyCutoff()
+    svo.kill()
 
   ' Turn off rsl
-  if sett.ENABLE_RSL
-    rsl.set_state(0)
+    if sett.ENABLE_RSL
+        rsl.set_state(0)
 
   ' lcd update
-  if sett.ENABLE_LCD
-    disp.display_status_icon(disp.CC_ERROR)
-    disp.display_main_lines(@DisplayEstopLine0, @DisplayEstopLine1)
-    disp.set_backlight(false)
+    if sett.ENABLE_LCD
+        disp.display_status_icon(disp.CC_ERROR)
+        disp.display_main_lines(@DisplayEstopLine0, @DisplayEstopLine1)
+        disp.set_backlight(false)
 
   ' kill cogs
-  waitms(50) ' settle down
-  cogstop(rx_cog_id)
-  cogstop(sensor_cog_id)
-  ser.stop()
-  leds.stop()
-  wheels.stop()
+    waitms(50) ' settle down
+    cogstop(rx_cog_id)
+    cogstop(sensor_cog_id)
+    ser.stop()
+    leds.stop()
+    wheels.stop()
 
   ' infinite loop
-  repeat
-    waitct(0)
+    repeat
+        waitct(0)
 
-pub sensor_loop() | left, right, internal, owx_status, byte txFmtBuf[100]
+PUB sensor_loop() | left, right, internal, owx_status, byte txFmtBuf[100]
 
 '' Sensor update cog
 
   ' DS18b20 bootup
-  owx_status := temp.start(sett.get_left_motor_sn(), sett.get_right_motor_sn(), sett.get_internal_temp_sn(), pins.ONE_WIRE, temp.PU_1K5)
+    owx_status := temp.start(sett.get_left_motor_sn(), sett.get_right_motor_sn(), sett.get_internal_temp_sn(), pins.ONE_WIRE, temp.PU_1K5)
 
-  if sett.OWX_ERRORS
-    case owx_status
-      temp.BUS_SHORT:
-        core_status := S_OW_SHORT
-        return
-      temp.BAD_RESET:
-        core_status := S_OW_ERROR
-        return
-      temp.NO_DEVICE:
-        core_status := S_OW_DNF
-        return
+    if sett.OWX_ERRORS
+        case owx_status
+            temp.BUS_SHORT:
+                core_status := S_OW_SHORT
+                return
+            temp.BAD_RESET:
+                core_status := S_OW_ERROR
+                return
+            temp.NO_DEVICE:
+                core_status := S_OW_DNF
+                return
 
-  ds_tm.start()
+    ds_tm.start()
 
   ' tx data
-  repeat
-    if ds_tm.millis() > sett.TEMP_SPEED
-      left, right, internal := temp.read_temps()
-      ser.txFlush(portHndl[0])
-      fstr3(string("sensors.temps=%d,%d,%d", 10), (left+50)/100, (right+50)/100, (internal+50)/100)
-      ds_tm.start()
+    repeat
+        if ds_tm.millis() > sett.TEMP_SPEED
+            left, right, internal := temp.read_temps()
+            ser.txFlush(portHndl[0])
+            fstr3(string("sensors.temps\250%d,%d,%d\254"),(left + 50) / 100,(right + 50) / 100,(internal + 50) / 100)
+            ds_tm.start()
 
 
-pub cmd_index(p_src, p_list, nc) : idx | byte buf[32], x, c
+PUB cmd_index(p_src, p_list, nc) : idx | byte buf[32], x, c
 
 '' Convert command string into value
 '' -- not case sensitive
 '' -- returns 1..n if found in command table
 '' -- returns 0 (false) if not found
 
-  bytemove(@buf, p_src, strsize(p_src)+1)                       ' copy string + terminator
+    bytemove(@buf, p_src, strsize(p_src) + 1)                   ' copy string + terminator
 
-  x := 0
-  repeat
-    c := buf[x]
-    if (c == 0)                                                 ' end of string
-      quit
-    elseif ((c >= "A") && (c <= "Z"))                           ' if uppercase
-      buf[x] += 32                                              '  make lowercase
-    x++
+    x := 0
+    repeat
+        c := buf[x]
+        if(c == 0)                                              ' end of string
+            quit
+        elseif((c >= "A") && (c <= "Z"))                        ' if uppercase
+            buf[x] += 32                                        '  make lowercase
+        x++
 
-  repeat nc
-    if (strcomp(@buf, p_list))
-      return idx+1
-    else
-      idx += 1                                                  ' update index
-      p_list += strsize(p_list) + 1                             ' update list pointer
+    repeat nc
+        if(strcomp(@buf, p_list))
+            return idx + 1
+        else
+            idx += 1                                            ' update index
+            p_list += strsize(p_list) + 1                       ' update list pointer
 
-  return 0
+    return 0
 
 
-pub tone(amp, freq)
+PUB tone(amp, freq)
 
-  beep.start(pins.BUZZER_PIN, amp, freq, beep.M_TRI)
+    beep.start(pins.BUZZER_PIN, amp, freq, beep.M_TRI)
 
 '' ============================== ''
 '' Serial Queue by Stephen Moraco ''
@@ -954,17 +983,17 @@ pub tone(amp, freq)
 '' Licence: MIT License           ''
 '' ============================== ''
 
-pub serial_queue_has_data() : bPresentStatus
+PUB serial_queue_has_data() : bPresentStatus
 '' Return T/F where T means a control value change has been received and needs to be handled
     bPresentStatus := (nQStrCount > 0) ? TRUE : FALSE
 
 
-pub serial_queue_count() : nCount
+PUB serial_queue_count() : nCount
 '' Return count of strings received
     nCount := nQStrCount
 
 
-pub get_serial_queue_data(pUserDest, lenDest, bShouldWait) : pStr | bStringArrived, pWrappedStr, nLen
+PUB get_serial_queue_data(pUserDest, lenDest, bShouldWait) : pStr | bStringArrived, pWrappedStr, nLen
 '' Return {pStr} or 0 if none
 ''  if {bShouldWait} is TRUE wait until string arrives before returning
     pStr := 0
@@ -983,7 +1012,7 @@ pub get_serial_queue_data(pUserDest, lenDest, bShouldWait) : pStr | bStringArriv
         free_wrapped_str(pWrappedStr, nLen)
 
 
-pub flush_serial_queue()
+PUB flush_serial_queue()
 '' Reset all Rx Queue control and data (emptying it!)
     bytefill(@serialRxBffr, 0, sett.RX_BUFF_BYTES)
     longfill(@rxStrPtrSet, 0, sett.RX_BUFF_LONGS)
@@ -1000,13 +1029,13 @@ pub flush_serial_queue()
     pRsltStrStart := 0
 
 
-pub reset_serial_queue_status()
+PUB reset_serial_queue_status()
 '' Reset all task failure indicators
     bQueOverrun := FALSE
     bStrQueOverrun := FALSE
 
 
-pri serial_queue_loop(pRxBffr, lenRxBffr)
+PRI serial_queue_loop(pRxBffr, lenRxBffr)
 ' our serial receive to queue loop
     ' preserve incoming values
     pRxByteStart := pRxBffr
@@ -1015,46 +1044,45 @@ pri serial_queue_loop(pRxBffr, lenRxBffr)
     ' NOTE parameters are for DEBUG use only
     flush_serial_queue()
 
-
     ' read serial input forever placing chars in RX Circ Queue
     repeat
         nTaskChr := ser.rxTime(portHndl[0], 1000)
-        if (nTaskChr <> ser.NO_CHAR)
+        if(nTaskChr <> ser.NO_CHAR)
             serial_enqueue_char(nTaskChr)
 
 
-pri serial_enqueue_char(nChr) : bFailedStatus
+PRI serial_enqueue_char(nChr) : bFailedStatus
 ' place byte into rx queue, if EOL then place term instead and engueue string ptr!
     bFailedStatus := FALSE
-    if (nRxByteCount < nRxByteMax)
+    if(nRxByteCount < nRxByteMax)
         if bInString == FALSE
             bInString := TRUE
             pNewStrStart := pRxByteHead
         nRxByteCount++
-        if (nChr <> $0a)
-            ' if NOT LF then save it
-            byte [pRxByteHead++] := nChr
+        if(nChr <> CMD_TERM)
+            ' if NOT TERM then save it
+            byte[pRxByteHead++] := nChr
         else
-            ' have LF terminate line
-            byte [pRxByteHead++] := $00 ' place term instead of EOL
+            ' have TERM terminate line
+            byte[pRxByteHead++] := $00  ' place term instead of EOL
             if bInString == TRUE
                 bInString := FALSE
                 serial_enqueue_str(pNewStrStart)
         ' wrap ptr if needed...
-        if pRxByteHead > @BYTE [@serialRxBffr][sett.RX_BUFF_BYTES - 1]
+        if pRxByteHead > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES - 1]
             pRxByteHead := @serialRxBffr
     else
         bQueOverrun := TRUE ' signal that we lost incoming data!!!
         if sett.Q_OVERRUN_ERR
-          core_status := S_QUEUE_OVERRUN
+            core_status := S_QUEUE_OVERRUN
         bFailedStatus := TRUE
 
 
-pri serial_enqueue_str(pStr) | strIdx
+PRI serial_enqueue_str(pStr) | strIdx
 ' report string arrival to listener (place string pointer in queue)
     if nQStrCount < sett.RX_BUFF_LONGS
         strIdx := nQStrHeadIdx  ' save for debug
-        LONG [@rxStrPtrSet][nQStrHeadIdx++] := pStr
+        LONG[@rxStrPtrSet][nQStrHeadIdx++] := pStr
         ' if head goes off end-of-set then wrap
         if nQStrHeadIdx > sett.RX_BUFF_LONGS - 1
             nQStrHeadIdx := 0
@@ -1064,7 +1092,7 @@ pri serial_enqueue_str(pStr) | strIdx
         bStrQueOverrun := TRUE ' signal that we lost incoming data!!!
 
 
-pri serial_dequeue_str() : pRmStr
+PRI serial_dequeue_str() : pRmStr
 ' remove string from queue, listener done with it
     'dumpStrQ(string("B4 String Ptr Que"))
     if nQStrCount > 0
@@ -1075,7 +1103,7 @@ pri serial_dequeue_str() : pRmStr
     'dumpStrQ(string("FTER String Ptr Que"))
 
 
-pri serial_dequeue_result_str() : pRsltStr
+PRI serial_dequeue_result_str() : pRsltStr
 ' remove string from queue, listener done with it
     'dumpStrQ(string("B4 String Ptr Que"))
     pRsltStr := 0
@@ -1084,34 +1112,34 @@ pri serial_dequeue_result_str() : pRsltStr
         pRsltStrStart := 0  ' mark as empty
 
 
-pri free_wrapped_str(pRmStr, nLen)
+PRI free_wrapped_str(pRmStr, nLen)
     ' zero our string memory
     zero_wrapped_str(pRmStr, nLen)
 
 
-pri zero_wrapped_str(pRmStr, nLen) | nIdx, pSrc
+PRI zero_wrapped_str(pRmStr, nLen) | nIdx, pSrc
 ' fill space occuppied by string with zero's
 '  NOTE handle buffer wrap!
 '    string can start near and and wrap to front!
     pSrc := pRmStr
     repeat nIdx from 0 to nLen - 1
         ' if pointing beyond end, wrap to front!
-        if pSrc > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES-1]
-          pSrc -= sett.RX_BUFF_BYTES
+        if pSrc > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES - 1]
+            pSrc -= sett.RX_BUFF_BYTES
         BYTE[pSrc++] := 0
     nRxByteCount -= nLen + 1
 
 
-pri copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
+PRI copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
 ' copy possible wrapped string {pSrcStr} to {pUserDest} (use min(strlen,lenDest) as bytes to move)
 '  NOTE handle buffer wrap!
 '    string can start near and and wrap to front!
     pDest := pUserDest
-    pSrc:= pSrcStr
+    pSrc := pSrcStr
     repeat nIdx from 0 to lenDest - 1
         ' if pointing beyond end, wrap to front!
-        if pSrc > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES-1]
-          pSrc -= sett.RX_BUFF_BYTES
+        if pSrc > @BYTE[@serialRxBffr][sett.RX_BUFF_BYTES - 1]
+            pSrc -= sett.RX_BUFF_BYTES
         if BYTE[pSrc] == 0
             quit    ' at string end, quit loop
         BYTE[pDest++] := BYTE[pSrc++]
@@ -1123,61 +1151,61 @@ pri copy_wrapped_str(pUserDest, pSrcStr, lenDest) | nIdx, pSrc, pDest
 '' =================== ''
 
 
-pub setup()
+PUB setup()
 
 '' Configure IO and objects for application
 
   ' Serial
-  portHndl[0] := ser.addPort(pins.RPI_RX, pins.RPI_TX, ser.MODE_NONE, sett.BR_SYSTEM, ser.PU_3K3)  ' start serial for system
+    portHndl[0] := ser.addPort(pins.RPI_RX, pins.RPI_TX, ser.MODE_NONE, sett.BR_SYSTEM, ser.PU_3K3) ' start serial for system
 
-  ifnot sett.TERM_MODE == sett.TMODE_NONE
-    portHndl[1] := ser.addPort(pins.RX1, pins.TX1, ser.MODE_NONE, sett.BR_TERM, ser.PU_3K3)  ' start serial for terminal
-  serial_cog_id := ser.start()
+    ifnot sett.TERM_MODE == sett.TMODE_NONE
+        portHndl[1] := ser.addPort(pins.RX1, pins.TX1, ser.MODE_NONE, sett.BR_TERM, ser.PU_3K3) ' start serial for terminal
+    serial_cog_id := ser.start()
 
   ' Voltmeter
-  batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT, sett.BMS_CALIB)
+    batt.start(sett.BMS_MODE, pins.VOLT1_P, pins.VOLT2_P, sett.B1_HIGH_VOLT, sett.B1_LOW_VOLT, sett.B2_HIGH_VOLT, sett.B2_LOW_VOLT, sett.BMS_CALIB)
 
   ' Display
-  if sett.ENABLE_LCD
-    lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.LCD_LINES, sett.LCD_WIDTH)
-  else
-    lcd_init_status := 1
+    if sett.ENABLE_LCD
+        lcd_init_status := disp.start(sett.LCD_ADDR, pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.LCD_LINES, sett.LCD_WIDTH)
+    else
+        lcd_init_status := 1
 
   ' Servos
-  if sett.ENABLE_PCA
-    servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
-  else
-    servo_init_status := 1
+    if sett.ENABLE_PCA
+        servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
+    else
+        servo_init_status := 1
 
   ' Status light
-  if sett.ENABLE_RSL
-    rsl.start(pins.RSL, sett.RSL_RATE)
+    if sett.ENABLE_RSL
+        rsl.start(pins.RSL, sett.RSL_RATE)
 
   ' Leds
-  if sett.ENABLE_LEDS
-    led_cog_id := leds.start() - 1
-    leds.fill_base($00_00_00_00)
-    leds.fill_body($00_00_00_00)
-    leds.fill_head($00_00_00_00)
-    leds.fill_cam($00_00_00_00)
-    l1_tm.start()
-    l2_tm.start()
-    l3_tm.start()
+    if sett.ENABLE_LEDS
+        led_cog_id := leds.start() - 1
+        leds.fill_base($00_00_00_00)
+        leds.fill_body($00_00_00_00)
+        leds.fill_head($00_00_00_00)
+        leds.fill_cam($00_00_00_00)
+        l1_tm.start()
+        l2_tm.start()
+        l3_tm.start()
 
   ' bme
-  if sett.ENABLE_BME
-    bme.setup(pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.BME_ADDR)
-    bme.sensor_config(bme.CONFIG_NAV_MODE)
+    if sett.ENABLE_BME
+        bme.setup(pins.SCL, pins.SDA, 100, disp.PU_1K5, sett.BME_ADDR)
+        bme.sensor_config(bme.CONFIG_NAV_MODE)
 
-  if sett.ENABLE_MPU
-    mpu_device_present := mpu.startx(pins.SCL, pins.SDA, -1, -1)
-    if sett.MPU_DEBUG
-      mpu.enableDebug(true)
-    else
-      mpu.enableDebug(false)
+    if sett.ENABLE_MPU
+        mpu_device_present := mpu.startx(pins.SCL, pins.SDA, - 1, - 1)
+        if sett.MPU_DEBUG
+            mpu.enableDebug(true)
+        else
+            mpu.enableDebug(false)
 
 
-pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor
+PUB setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, motor
 
 '' Setup blushless drive
 
@@ -1191,13 +1219,13 @@ pub setup_motion() | basePinLt, basePinRt, detectModeLt, detectModeRt, voltage, 
     motor := wheels.validMotorForChoice(motc.MOTOR_TYPE)
 
     if basePinLt <> wheels.INVALID_PIN_BASE and basePinRt <> wheels.INVALID_PIN_BASE and voltage <> wheels.INVALID_VOLTAGE and motor <> wheels.INVALID_MOTOR and detectModeLt <> wheels.INVALID_DET_MODE and detectModeRt <> wheels.INVALID_DET_MODE
-      wheels.start(basePinLt, basePinRt, voltage, detectModeLt, detectModeRt)
-      wheels.holdAtStop(false)
-      wheels.setMaxSpeed(100)  ' override 75% with 100%
+        wheels.start(basePinLt, basePinRt, voltage, detectModeLt, detectModeRt)
+        wheels.holdAtStop(false)
+        wheels.setMaxSpeed(100) ' override 75% with 100%
 
-      waitUntilMotorReady()
+        waitUntilMotorReady()
 
-pri waitUntilMotorReady()
+PRI waitUntilMotorReady()
     if wheels.isReady() == false
         debug("* wait motors ready...")
         repeat
@@ -1208,24 +1236,24 @@ pri waitUntilMotorReady()
     debug("* Motors ready, let's drive!")
 
 
-pub wait_for_terminal(clear)
+PUB wait_for_terminal(clear)
 
 '' Wait for terminal to be open and key pressed
 
-  ser.rxFlush(portHndl[1])
-  ser.rx(portHndl[1])
-  if (clear)
-    clear_screen()
+    ser.rxFlush(portHndl[1])
+    ser.rx(portHndl[1])
+    if(clear)
+        clear_screen()
 
 
-pub clear_screen()
+PUB clear_screen()
 
 '' Move cursor home (upper left) and clear the terminal
 
-  if (T_TYPE == T_PST)
-    ser.tx(portHndl[1], ser.HOME)
-    ser.tx(portHndl[1], ser.CLS)
-  else
-    ser.txStr(portHndl[1], ansi.hide_cursor())
-    ser.txStr(portHndl[1], ansi.home())
-    ser.txStr(portHndl[1], ansi.cls())
+    if(T_TYPE == T_PST)
+        ser.tx(portHndl[1], ser.HOME)
+        ser.tx(portHndl[1], ser.CLS)
+    else
+        ser.txStr(portHndl[1], ansi.hide_cursor())
+        ser.txStr(portHndl[1], ansi.home())
+        ser.txStr(portHndl[1], ansi.cls())
