@@ -1173,7 +1173,7 @@ PUB setup()
 
   ' Servos
     if sett.ENABLE_PCA
-        servo_init_status := svo.start(sett.PCA1_ADDR, sett.PCA2_ADDR, pins.SCL, pins.SDA, 100)
+        servo_init_status := svo.start(sett.PCA1_ADDR, pins.SCL, pins.SDA, 100)
     else
         servo_init_status := 1
 

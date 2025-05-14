@@ -11,59 +11,44 @@
 '' =================================================================================================
 
 
-obj
+OBJ
 
-  pcaa : "ka_pca9685"                                           '   pca9685
-  pcab : "ka_pca9685"                                           '   pca9685
-  util : "ka_utils"                                             '   misc utils
+    pcaa : "ka_pca9685"                                         '   pca9685
+    util : "ka_utils"                                           '   misc utils
 
 
-pub null()
+PUB null()
 
 '' This is not a top level object
 
 
-pub start(addr1, addr2, sclpin, sdapin, khz) : result | ra, rb
+PUB start(addr1, sclpin, sdapin, khz) : result | ra, rb
 
 
-  ra := pcaa.startx(sclpin, sdapin, 100, addr1, pcaa.PU_1K5)
-  rb := pcab.startx(sclpin, sdapin, 100, addr2, pcab.PU_1K5)
-  return ra && rb
+    ra := pcaa.startx(sclpin, sdapin, 100, addr1, pcaa.PU_1K5)
+    return ra && rb
 
 
-pub set_position_us(index, value)
-
-  if index < 16
+PUB set_position_us(index, value)
     pcaa.set_us(index, value)
-  else
-    pcab.set_us(index-16, value)
 
-
-pub set_position(index, degrees)
-
-  if index < 16
+PUB set_position(index, degrees)
     pcaa.set_us(index, util.map(degrees, 0, 180, 750, 2250))
-  else
-    pcab.set_us(index-16, util.map(degrees, 0, 180, 750, 2250))
+
+PUB set_all_position_us(value)
+    pcaa.set_all_us(value)
 
 
-pub set_all_position_us(value)
+PUB set_all_position(degrees)
 
-  pcaa.set_all_us(value)
-
-
-pub set_all_position(degrees)
-
-  pcaa.set_all_us(util.map(degrees, 0, 180, 750, 2250))
+    pcaa.set_all_us(util.map(degrees, 0, 180, 750, 2250))
 
 
-pub kill()
-
-  pcaa.set_all_pwm(0, 4096)
-  pcab.set_all_pwm(0, 4096)
+PUB kill()
+    pcaa.set_all_pwm(0, 4096)
 
 
-con { license }
+CON { license }
 
 {{
 
